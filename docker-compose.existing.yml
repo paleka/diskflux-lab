@@ -15,7 +15,7 @@ services:
     build:
       context: .
       additional_contexts:
-        daemon: ${DAEMON_SRC:-../snapraid-daemon}
+        daemon: ${DAEMON_SRC:-../diskflux-daemon}
       args:
         LAB_PACKAGES: "1"
     container_name: snapraid-lab-existing

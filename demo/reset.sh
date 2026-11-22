@@ -6,6 +6,10 @@
 set -u
 LAB=$(cd "$(dirname "$0")/.." && pwd)
 cd "$LAB" || exit 1
+# a checkout still under its earlier name
+if [ -z "${DAEMON_SRC:-}" ] && [ ! -d ../diskflux-daemon ] && [ -d ../snapraid-daemon ]; then
+	export DAEMON_SRC=../snapraid-daemon
+fi
 C="docker compose -f docker-compose.yml -f demo/demo.yml"
 $C down -v
 # the loop devices of the lab are attached in the container but belong to the machine

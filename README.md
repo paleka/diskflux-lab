@@ -128,14 +128,14 @@ as it starts (`shots-ready.json`), after `lab scenario mass-delete` and a mainte
 
 Put the two checkouts side by side:
 
-    git clone -b storage https://github.com/paleka/diskflux.git snapraid-daemon
-    git clone https://github.com/paleka/snapraid-lab.git
-    cd snapraid-lab
+    git clone -b storage https://github.com/paleka/diskflux.git diskflux-daemon
+    git clone https://github.com/paleka/diskflux-lab.git
+    cd diskflux-lab
     docker compose up --build
 
 Then open http://localhost:7627
 
-A daemon checkout somewhere else: `DAEMON_SRC=/path/to/snapraid-daemon docker compose up --build`.
+A daemon checkout somewhere else: `DAEMON_SRC=/path/to/diskflux-daemon docker compose up --build`.
 Docker Compose 2.17 or later is needed (`additional_contexts`).
 
 Stop with Ctrl-C (or `docker compose down`). The arrays survive restarts.

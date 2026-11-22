@@ -8,7 +8,7 @@ services:
     build:
       context: .
       additional_contexts:
-        daemon: ${DAEMON_SRC:-../snapraid-daemon}
+        daemon: ${DAEMON_SRC:-../diskflux-daemon}
     container_name: snapraid-lab-arrays
     privileged: true
     init: true
@@ -22,8 +22,8 @@ services:
       LAB_TEST: "multi-array-test.sh"
     volumes:
       - arrayslab:/lab
-      - ${DAEMON_SRC:-../snapraid-daemon}/commander:/ui/commander
-      - ${DAEMON_SRC:-../snapraid-daemon}/brutale:/ui/brutale
-      - ${DAEMON_SRC:-../snapraid-daemon}/quiet:/ui/quiet
+      - ${DAEMON_SRC:-../diskflux-daemon}/commander:/ui/commander
+      - ${DAEMON_SRC:-../diskflux-daemon}/brutale:/ui/brutale
+      - ${DAEMON_SRC:-../diskflux-daemon}/quiet:/ui/quiet
 volumes:
   arrayslab:

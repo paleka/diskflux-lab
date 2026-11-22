@@ -11,13 +11,15 @@
 #   sudo /opt/demo/snapraid-lab/demo/upgrade.sh storage    the newest work, not released yet
 #   sudo /opt/demo/snapraid-lab/demo/upgrade.sh --check    what runs and what is available
 #
-# The daemon is the checkout next to the lab (../snapraid-daemon, or DAEMON_SRC).
+# The daemon is the checkout next to the lab (../diskflux-daemon, or DAEMON_SRC;
+# ../snapraid-daemon, its earlier name, is used when that is the one there).
 # If the build fails the demo keeps running the image it had.
 set -eu
 
 LAB=$(cd "$(dirname "$0")/.." && pwd)
-DAEMON="${DAEMON_SRC:-$LAB/../snapraid-daemon}"
-[ -d "$DAEMON/.git" ] || { echo "upgrade.sh: no checkout of snapraid-daemon in $DAEMON" >&2; exit 1; }
+DAEMON="${DAEMON_SRC:-$LAB/../diskflux-daemon}"
+[ -n "${DAEMON_SRC:-}" ] || [ -d "$DAEMON" ] || [ ! -d "$LAB/../snapraid-daemon" ] || DAEMON="$LAB/../snapraid-daemon"
+[ -d "$DAEMON/.git" ] || { echo "upgrade.sh: no checkout of the daemon in $DAEMON" >&2; exit 1; }
 DAEMON=$(cd "$DAEMON" && pwd)
 
 git -C "$DAEMON" fetch -q --tags origin
@@ -38,7 +40,7 @@ storage) ref="origin/storage" ;;
 v*) ref="$1" ;;
 *) ref="v$1" ;;
 esac
-git -C "$DAEMON" rev-parse -q --verify "$ref^{commit}" >/dev/null || { echo "upgrade.sh: $ref is not a release or a branch of snapraid-daemon" >&2; exit 1; }
+git -C "$DAEMON" rev-parse -q --verify "$ref^{commit}" >/dev/null || { echo "upgrade.sh: $ref is not a release or a branch of the daemon" >&2; exit 1; }
 
 echo "daemon: $now -> $ref"
 git -C "$DAEMON" checkout -q --detach "$ref"
