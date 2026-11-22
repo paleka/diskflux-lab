@@ -19,7 +19,7 @@ is enough), as root:
 ```sh
 apt-get install -y docker.io docker-compose git
 mkdir -p /opt/demo && cd /opt/demo
-git clone -b storage https://github.com/paleka/snapraid-daemon.git
+git clone -b storage https://github.com/paleka/diskflux.git snapraid-daemon
 git clone https://github.com/paleka/snapraid-lab.git
 snapraid-lab/demo/upgrade.sh
 cp snapraid-lab/demo/demo-reset.service snapraid-lab/demo/demo-reset.timer /etc/systemd/system/

@@ -5,7 +5,7 @@
 #
 # The SnapRAID engine is the original one, taken from its repository at a pinned release.
 # The daemon comes from the "daemon" build context: a checkout of
-# https://github.com/paleka/snapraid-daemon (branch storage), see docker-compose.yml.
+# https://github.com/paleka/diskflux (branch storage), see docker-compose.yml.
 FROM debian:bookworm-slim AS build
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential autoconf automake git zlib1g-dev zip ca-certificates nodejs && rm -rf /var/lib/apt/lists/*

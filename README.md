@@ -1,12 +1,12 @@
 # SnapRAID lab
 
 A Docker lab with emulated disks, to try and to test what the
-[`storage` branch of paleka/snapraid-daemon](https://github.com/paleka/snapraid-daemon/tree/storage)
+[`storage` branch of paleka/diskflux](https://github.com/paleka/diskflux/tree/storage)
 adds to SnapRAID Daemon: the **Storage** and **Arrays** pages, the **pages for everyday use**
 (Home, My files, Sharing, Backups, Disks, Protection, Alerts, System, Help) and the settings of
 the machine behind them.
 
-Out of the box it is a showcase: three arrays in one daemon, four mergerfs pools, eighteen disks
+Out of the box it is a showcase: three arrays in one daemon, four mergerfs pools, nineteen disks
 of different sizes, kinds (HDD, shingled HDD, SAS, SATA SSD, NVMe, USB) and filesystems (ext4,
 XFS, Btrfs), and configurations that use most options of SnapRAID and of its daemon. See
 [The showcase lab](#the-showcase-lab).
@@ -17,7 +17,7 @@ XFS, Btrfs), and configurations that use most options of SnapRAID and of its dae
 |---|---|---|
 | SnapRAID, the engine | Andrea Mazzoleni | <https://github.com/amadvance/snapraid>, <https://www.snapraid.it/> |
 | SnapRAID Daemon and its web UI | Andrea Mazzoleni | <https://github.com/amadvance/snapraid-daemon>, <https://www.snapraid.it/ui> |
-| Storage, Arrays and everyday pages (fork of the daemon) | Robert Paleka | <https://github.com/paleka/snapraid-daemon/tree/storage>, see its `CHANGES-FORK` |
+| Storage, Arrays and everyday pages (fork of the daemon) | Robert Paleka | <https://github.com/paleka/diskflux/tree/storage>, see its `CHANGES-FORK` |
 | This lab | Robert Paleka | this repository |
 
 The fork and this lab are unofficial: they are not part of SnapRAID and are not reviewed or
@@ -128,7 +128,7 @@ as it starts (`shots-ready.json`), after `lab scenario mass-delete` and a mainte
 
 Put the two checkouts side by side:
 
-    git clone -b storage https://github.com/paleka/snapraid-daemon.git
+    git clone -b storage https://github.com/paleka/diskflux.git snapraid-daemon
     git clone https://github.com/paleka/snapraid-lab.git
     cd snapraid-lab
     docker compose up --build
@@ -233,7 +233,7 @@ add a disk, replace one and remove one, and in **Arrays** move a disk from an ar
 The larger spare is bigger than the parity of the default array, the smaller one is a removable
 USB disk: the dialogs have something to say about both.
 
-To try the first-time setup instead, start from empty disks (eighteen of them, of every kind;
+To try the first-time setup instead, start from empty disks (nineteen of them, of every kind;
 `docker-compose.simple.yml` takes `LAB_PRESET=blank` too, and gives eight equal ones):
 
     docker compose down -v
