@@ -4,7 +4,7 @@
 # Checks the write test of a new disk, the record of the runs with the errors found and fixed,
 # the update of the protection when enough files changed, the battery backup (UPS), the disks
 # mounted for a while and ejected, the folders of other computers as sources of a backup, and
-# the alerts sent to more channels at once.
+# the alerts sent to more channels at once, and the update of the daemon from the web UI.
 #
 # It works on the showcase lab of docker-compose.yml as it is after the first start. It
 # overwrites the blank disk s2 and writes on x1 and u1:
@@ -396,6 +396,83 @@ check "the shutdown on battery is a dry run in the lab" grep -q "dry run" <<< "$
 check "a limit is kept" test "$(curl -s "$H/events?limit=2" | jq -r '.events | length')" = 2
 check "the events are a file next to the settings" grep -qP "^\d+\twarn\tpower_cut\tnut:labups\t" "$CONFDIR/snapraidd-events.log"
 refute "a folder size is not an event" grep -qP "\tusage\t" "$CONFDIR/snapraidd-events.log"
+
+section "update of the daemon"
+# The lab runs the daemon built from the sources, not from the package: it can't update itself,
+# and says why. Then a stand-in of snapraidd-upgrade, keeping its status and log like the real
+# one, shows how the web UI starts an update and follows it.
+UP_TOOL=/usr/sbin/snapraidd-upgrade
+req GET "$H/upgrade"
+check "the installed version is told" test "$(echo "$BODY" | jq -r .daemon_version)" != null
+check "a copy not from the package can't update itself" test "$(echo "$BODY" | jq -r .available)" = false
+check "and it says why" grep -q "not installed from the package" <<< "$(echo "$BODY" | jq -r .unavailable_reason)"
+check "the status of the machine tells it too" test "$(host .can_upgrade)" = false
+post upgrade '{"version":"latest"}';      expect "an update is refused there" 409 "not installed from the package"
+
+cat > $UP_TOOL <<'TOOL'
+#!/bin/sh
+# stand-in of snapraidd-upgrade for the lab tests
+DIR=/etc; V=latest; BG=0
+while [ $# -gt 0 ]; do
+    case "$1" in
+    --list) printf '2.2.s99 2026-12-01\n2.2.s98 2026-11-30\nnot-a-version 2026-11-29\n'; exit 0 ;;
+    --dir) DIR=$2; shift ;;
+    --background) BG=1 ;;
+    *) V=$1 ;;
+    esac
+    shift
+done
+[ "$BG" = 1 ] && exec > "$DIR/snapraidd-upgrade.log" 2>&1
+st() { printf 'state=%s\nfrom=2.2.s1\nto=%s\nstarted=%s\nfinished=%s\npid=%s\nmessage=%s\n' "$1" "$V" "$T" "$2" $$ "$3" > "$DIR/snapraidd-upgrade.status"; }
+T=$(date +%s)
+echo "lab stand-in: installing $V"
+st running "" "Installing $V"
+sleep 3
+case "$V" in
+*.s66) echo "no network"; st failed "$(date +%s)" "cannot download release $V" ;;
+*) echo "installed"; st done "$(date +%s)" "Upgraded from 2.2.s1 to $V" ;;
+esac
+TOOL
+chmod 755 $UP_TOOL
+req GET "$H/upgrade"
+check "with the command of the package it can update itself" test "$(echo "$BODY" | jq -r .available)" = true
+req GET "$H/upgrade_releases"
+check "the releases are listed, newest first" test "$(echo "$BODY" | jq -r '[.releases[].version] | join(" ")')" = "2.2.s99 2.2.s98"
+check "a release has its date" test "$(echo "$BODY" | jq -r '.releases[0].date')" = 2026-12-01
+for bad in '2.2;rm -rf /' '../2.2' '2.2.s9 ' '--force' ''; do
+    post upgrade "$(jq -cn --arg v "$bad" '{version: $v}')"; expect "the version '$bad' is refused" 400
+done
+post upgrade '{"version":"2.2.s99"}';     expect "an update starts" 202
+REQ=$(echo "$BODY" | jq -r .requested)
+sleep 1
+post upgrade '{"version":"2.2.s99"}';     expect "a second one waits for the first" 409 "already running"
+req GET "$H/upgrade"
+check "it is followed while it runs" test "$(echo "$BODY" | jq -r .last.state)" = running
+for _ in $(seq 1 20); do [ "$(curl -s $H/upgrade | jq -r .last.state)" = running ] || break; sleep 1; done
+req GET "$H/upgrade"
+check "its end is told" test "$(echo "$BODY" | jq -r .last.state)" = done
+check "started after it was asked" test "$(echo "$BODY" | jq -r .last.started)" -ge "$((REQ - 1))"
+check "the end of its log is there" grep -q "installed" <<< "$(echo "$BODY" | jq -r .last.log)"
+EV=$(curl -s "$H/events?limit=10")
+check "the start is in the events" test "$(echo "$EV" | jq -r '[.events[] | select(.kind == "upgrade_start")][0].target')" = 2.2.s99
+check "the end is in the events, once" test "$(echo "$EV" | jq -r '[.events[] | select(.kind == "upgrade")] | length')" = 1
+curl -s $H/upgrade > /dev/null
+check "reading it again tells it no more" test "$(curl -s "$H/events?limit=10" | jq -r '[.events[] | select(.kind == "upgrade")] | length')" = 1
+post upgrade '{"version":"2.2.s66"}';     expect "an update that will fail starts" 202
+for _ in $(seq 1 20); do [ "$(curl -s $H/upgrade | jq -r .last.state)" = running ] || break; sleep 1; done
+req GET "$H/upgrade"
+check "a failure is told with its reason" test "$(echo "$BODY" | jq -r .last.message)" = "cannot download release 2.2.s66"
+check "a failure is in the events as bad" test "$(curl -s "$H/events?limit=10" | jq -r '[.events[] | select(.kind == "upgrade")][0].level')" = bad
+post surface "{\"device\":\"$S2\"}";      expect "a long job starts" 202
+post upgrade '{"version":"2.2.s99"}';     expect "no update while a job runs" 409 "storage operation"
+check "the status says so" test "$(curl -s $H/upgrade | jq -r .busy)" = true
+req POST $S/job_stop '{}'
+job_wait
+# a status left by a run that died
+printf 'state=running\nfrom=2.2.s1\nto=2.2.s99\nstarted=1\nfinished=\npid=999999\nmessage=Installing\n' > "$CONFDIR/snapraidd-upgrade.status"
+check "a run that died is told as failed" test "$(curl -s $H/upgrade | jq -r .last.state)" = failed
+rm -f $UP_TOOL "$CONFDIR/snapraidd-upgrade.status" "$CONFDIR/snapraidd-upgrade.log"
+check "without the command it can't update itself again" test "$(curl -s $H/upgrade | jq -r .available)" = false
 
 section "the lab as it was"
 # the tests take long: the disks of the other arrays may have gone to sleep, and a sleeping disk tells no health

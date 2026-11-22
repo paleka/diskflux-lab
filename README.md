@@ -361,15 +361,15 @@ of a whole disk; the copy of a single file; and a sync stopped by the limit of t
 run again by the daemon when many more files were added, and not when few were.
 
 A ninth one, `tests/extras-test.sh`, checks the write test of a new disk, the record of the runs,
-the battery backup (UPS), the disks opened and ejected, the folders of other computers and the
-alerts to more places at once, on the showcase lab (stop the lab first; about fifteen minutes,
+the battery backup (UPS), the disks opened and ejected, the folders of other computers, the
+alerts to more places at once and the update of the daemon from the web UI, on the showcase lab (stop the lab first; about fifteen minutes,
 most of them waiting for the daemon to look for changes by itself):
 
     docker compose -f docker-compose.extras.yml up --build --abort-on-container-exit --exit-code-from tests
     docker compose -f docker-compose.extras.yml down -v
 
-The lab has no UPS, no other computer and no mail, so the test writes small stand-ins of `upsc`,
-`mount.cifs` and `mail` for its time, and removes them at the end. It covers the blank disk `s2`
+The lab has no UPS, no other computer, no mail and no package of the daemon, so the test writes
+small stand-ins of `upsc`, `mount.cifs`, `mail` and `snapraidd-upgrade` for its time, and removes them at the end. It covers the blank disk `s2`
 written and read back whole, left blank, with disks of an array refused; a sync and a scrub in
 the record, silent damage written into a protected file found by a scrub and recorded with its
 errors, the repair recorded with what it recovered, and every run recorded once; a power cut
@@ -490,6 +490,7 @@ SMART changes show up at the next probe (every minute).
 | `lab` | the helper used above |
 | `docs/screenshots/` | the pictures of this page |
 | `docs/tools/` | the script and the lists that take them |
+| `demo/` | the public demo: the showcase lab behind a login, started again every 25 minutes, and `demo/upgrade.sh` to move it to another release (see `demo/README.md`) |
 
 Array and daemon configs live in the `lab` volume, under `/lab/etc`.
 
