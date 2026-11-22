@@ -1,0 +1,8 @@
+[Unit]
+Description=Reset the SnapRAID demo lab
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/demo/snapraid-lab/demo/reset.sh

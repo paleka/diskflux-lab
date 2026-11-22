@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Robert Paleka
+#
+# Compose override of the public demo: the showcase lab of docker-compose.yml,
+# reachable from the network and protected by a login. See demo/README.md.
+services:
+  snapraid:
+    ports: !override
+      - "7627:7627"
+    environment:
+      # user:password of the browser login; empty: no login
+      LAB_AUTH: "${DEMO_AUTH-demo:demo}"

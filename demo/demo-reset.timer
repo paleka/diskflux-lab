@@ -1,0 +1,9 @@
+[Unit]
+Description=Reset the SnapRAID demo lab every 25 minutes
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=25min
+
+[Install]
+WantedBy=timers.target
