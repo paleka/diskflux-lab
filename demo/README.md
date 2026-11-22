@@ -20,7 +20,7 @@ is enough), as root:
 apt-get install -y docker.io docker-compose git
 mkdir -p /opt/demo && cd /opt/demo
 git clone -b storage https://github.com/paleka/diskflux.git snapraid-daemon
-git clone https://github.com/paleka/snapraid-lab.git
+git clone https://github.com/paleka/diskflux-lab.git snapraid-lab
 snapraid-lab/demo/upgrade.sh
 cp snapraid-lab/demo/demo-reset.service snapraid-lab/demo/demo-reset.timer /etc/systemd/system/
 systemctl daemon-reload && systemctl enable --now demo-reset.timer

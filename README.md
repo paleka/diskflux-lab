@@ -1,4 +1,4 @@
-# SnapRAID lab
+# DiskFlux Lab
 
 A Docker lab with emulated disks, to try and to test what the
 [`storage` branch of paleka/diskflux](https://github.com/paleka/diskflux/tree/storage)
