@@ -12,7 +12,7 @@ MEDIA=${LAB_MEDIA_DATA_DISKS:-0}   # data disks (m1..mN) of a second array named
 SCRATCH=${LAB_SCRATCH_DISKS:-0}    # disks (x1..xN) formatted and mounted, but in no array
 POOLS=${LAB_POOLS:-0}              # 1: a mergerfs pool for every array, and one for the scratch disks
 SIZE=${LAB_DISK_SIZE_MB:-512}
-SIZES=${LAB_DISK_SIZES:-}          # per-disk sizes in MB, e.g. "d1=256 d3=1024 p1=1024 s1=2048"; the others get LAB_DISK_SIZE_MB
+SIZES=${LAB_DISK_SIZES:-}          # per-disk sizes, e.g. "d1=256 d3=1024 m1=12T s2=500G": a number is MB, 500G and 12T a drive of that label; the others get LAB_DISK_SIZE_MB
 FLASH=${LAB_FLASH_DATA_DISKS:-0}    # data disks (f1..fN) of a third array named "flash", with one parity disk (g1)
 SPLIT=${LAB_MEDIA_SPLIT_PARITY:-0} # 1: the parity of the array "media" is split over two disks (q1, q2), each smaller than its data disks
 USB=${LAB_USB_DISKS:-0}            # disks (u1..uN) mounted on their own: in no array and in no pool
@@ -126,10 +126,28 @@ nodes() { # loop device
     done
 }
 
-size_of() { # disk name -> size in MB
-    local kv
-    for kv in ${SIZES//,/ }; do [ "${kv%%=*}" = "$1" ] && { echo "${kv#*=}"; return; }; done
-    echo "$SIZE"
+size_bytes_of() { # disk name -> size in bytes. A number is MiB; 500G or 12T is a drive of that label, with
+    # the count of sectors of the IDEMA standard real drives have, so SMART and the pages show a real size
+    local v; v=$(lookup "$SIZES" "$1"); v=${v:-$SIZE}
+    local gb=
+    case $v in
+    *[Tt]) gb=$(( ${v%?} * 1000 )) ;;
+    *[Gg]) gb=${v%?} ;;
+    esac
+    if [ -z "$gb" ]; then echo $(( v * 1048576 ))
+    elif [ "$gb" -ge 50 ]; then echo $(( (97696368 + 1953504 * (gb - 50)) * 512 ))
+    else echo $(( gb * 1000000000 )); fi
+}
+
+size_of() { echo $(( $(size_bytes_of "$1") / 1048576 )); }   # disk name -> size in MiB
+
+# A disk of about a terabyte or more. Its image is sparse like the others: only what is written takes room.
+# The examples that need a full disk (the first half of the split parity, the unbalanced pool, the
+# full-disk tips) stay on small disks, where the files are real.
+big() { [ "$(size_of "$1")" -ge 900000 ]; }
+
+gpt() { # image: a GPT with one Linux partition from 1 MiB to the end, as on any large drive (an MBR stops at 2 TiB)
+    printf 'label: gpt\nstart=2048, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4\n' | sfdisk -q "$1" >/dev/null
 }
 
 lookup() { # "name=value ..." name -> value, or nothing
@@ -150,10 +168,14 @@ fs_of() { # disk name -> filesystem. xfs needs 300 MB, btrfs 128 MB: a smaller d
 }
 
 format() { # disk name, device
+    # A large disk gets a small XFS log and ext4 journal and fewer ext4 inodes: the default ones are written
+    # in full, gigabytes of the sparse image (measured on 10 TB: XFS 2 GB down to 65 MB, ext4 1.2 GB to 0.2 GB)
+    local large=
+    big "$1" && large=1
     case $(fs_of "$1") in
-    xfs) mkfs.xfs -q -f -L "$1" "$2" ;;
+    xfs) mkfs.xfs -q -f ${large:+-l size=64m} -L "$1" "$2" ;;
     btrfs) mkfs.btrfs -q -f -L "$1" "$2" >/dev/null ;;
-    *) mkfs.ext4 -q -m 0 -L "$1" "$2" ;;
+    *) mkfs.ext4 -q -m 0 ${large:+-T largefile4 -J size=64} -L "$1" "$2" ;;
     esac
 }
 
@@ -162,10 +184,12 @@ attach() { # name [prepared] -> sets LOOP, and FRESH=1 when the image was just c
     local name=$1 img=$LAB/img/$1.img base
     FRESH=0
     if [ ! -f "$img" ]; then
-        truncate -s "$(size_of "$name")M" "$img"
+        truncate -s "$(size_bytes_of "$name")" "$img"
         # A partition table makes the disk look like a real one: SnapRAID resolves
         # the filesystem on loopNp1 back to the "physical" device loopN.
-        [ "${2:-}" = prepared ] && { mbr "$img" || return 1; }
+        if [ "${2:-}" = prepared ]; then
+            if big "$name"; then gpt "$img" || return 1; else mbr "$img" || return 1; fi
+        fi
         FRESH=1
     fi
     LOOP=$(losetup -fP --show "$img") || return 1
@@ -366,6 +390,7 @@ if [ "$PRESET" = ready ] && [ $has_media = 1 ] && [ ! -f $LAB/etc/snapraid/media
         echo "content /mnt/lab/m1/snapraid.content"
         for d in "${disks[@]}"; do case $d in m*) echo "data $d /mnt/lab/$d" ;; esac; done
         echo "exclude *.tmp"; echo "exclude /lost+found/"
+        [ "$SHOWCASE" = 1 ] && echo "nohidden"
         echo "autosave 1"
     } > $LAB/etc/snapraid/media.conf
     cat > $LAB/etc/snapraidd.d/media.conf <<CONF
@@ -399,6 +424,7 @@ if [ "$PRESET" = ready ] && has f1 && [ ! -f $LAB/etc/snapraid/flash.conf ]; the
         echo "content /mnt/lab/f1/snapraid.content"
         for d in "${disks[@]}"; do case $d in f*) echo "data $d /mnt/lab/$d" ;; esac; done
         echo "exclude *.tmp"; echo "exclude /lost+found/"
+        [ "$SHOWCASE" = 1 ] && echo "nohidden"
         echo "autosave 1"
         if [ $snap = 1 ]; then
             echo "# a sync reads the Btrfs data disks from a snapshot taken when it starts: what is"
@@ -491,6 +517,25 @@ else
     sed -i "s|^net_web_root = .*|net_web_root = $UI.zip|" $LAB/etc/snapraidd.conf
 fi
 
+# On a large disk "lab seed" writes some real files and takes the rest of the room with "lab space".
+# Its parity then has to look as full as a real one: the last disk of each parity level gets the room
+# the parity of the fullest data disk would take.
+pad_parity() { # snapraid.conf
+    local conf=$1 max=0 dir u files f last real d
+    for dir in $(awk '$1=="data"||$1=="disk"{print $3}' "$conf"); do
+        u=$(df -B1 --output=used "$dir" 2>/dev/null | tail -1)
+        [ -n "$u" ] && [ "$u" -gt "$max" ] && max=$u
+    done
+    while read -r files; do
+        real=0; last=
+        for f in ${files//,/ }; do [ -f "$f" ] && real=$((real + $(stat -c %s "$f"))); last=$f; done
+        [ "$real" -gt 0 ] || continue   # no parity yet: the first sync failed
+        d=$(basename "$(dirname "$last")")
+        big "$d" || continue
+        [ $((max - real)) -gt 1000000000 ] && lab space "$d" "+$(( (max - real) / 1000000000 ))" >/dev/null
+    done < <(awk '$1 ~ /^([2-6]-)?parity$/ {print $2}' "$conf")
+}
+
 # Sample content on new data disks, a first sync, then some changes left pending.
 seeded=0; seeded_media=0; seeded_flash=0
 for d in "${fresh_disks[@]}"; do
@@ -499,16 +544,18 @@ for d in "${fresh_disks[@]}"; do
     m*) lab seed "$d"; seeded_media=1 ;;
     f*) lab seed "$d"; seeded_flash=1 ;;
     x*) lab fill "/mnt/lab/$d" 40 >/dev/null ;;
-    u*) lab fill "/mnt/lab/$d" 20 >/dev/null ;;
+    u*) lab fill "/mnt/lab/$d" 20 >/dev/null; big "$d" && lab space "$d" 31 >/dev/null ;;
     esac
 done
 if [ $seeded_flash = 1 ] && [ ! -f $LAB/etc/flash.content ] && [ -f $LAB/etc/snapraid/flash.conf ]; then
     log "first sync of the third array"
     snapraid -c $LAB/etc/snapraid/flash.conf -q sync >/dev/null 2>$LAB/log/first-sync-flash.err || log "first sync of the third array failed, see $LAB/log/first-sync-flash.err"
+    pad_parity $LAB/etc/snapraid/flash.conf
 fi
 if [ $seeded_media = 1 ] && [ ! -f $LAB/etc/media.content ] && [ -f $LAB/etc/snapraid/media.conf ]; then
     log "first sync of the second array"
     snapraid -c $LAB/etc/snapraid/media.conf -q sync >/dev/null 2>$LAB/log/first-sync-media.err || log "first sync of the second array failed, see $LAB/log/first-sync-media.err"
+    pad_parity $LAB/etc/snapraid/media.conf
 fi
 if [ $seeded = 1 ] && [ ! -f $LAB/etc/snapraid.content ]; then
     log "first sync of the new array"

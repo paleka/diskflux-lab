@@ -16,6 +16,7 @@ lab wipe <disk>              empty a data disk, like a replaced one (recover it 
 lab delete <disk> <count>    delete <count> files (enough of them trips the sync safety threshold)
 lab smart <disk> KEY=VALUE.. edit a SMART profile, e.g. REALLOCATED=120 TEMP=58 FAILING=1
 lab fill <dir> <MB>          write <MB> of files in a folder, e.g. to unbalance a pool: lab fill /mnt/lab/d1 150
+lab space <disk> <%|+GB|0>   take room on a disk without writing it (up to a level, GB more, or give it all back)
 lab dup <pool>               copy a few files to a second disk of the pool, making duplicates
 lab reformat <disk>          give a data disk a new empty filesystem, like a replaced one (array goes DEGRADED)
 lab inbox [clear|<n>]        what the daemon notified (notify_start, notify_result, notify_heartbeat); <n> shows one
@@ -28,7 +29,7 @@ api() { curl -s -m 30 ${LAB_AUTH:+-u "$LAB_AUTH"} "$@"; }
 base() { [ "${1:-default}" = default ] && echo http://127.0.0.1:7627/snapraid/v1 || echo "http://127.0.0.1:7627/snapraid/v1/arrays/$1"; }
 rnd() { echo $(( (RANDOM << 15 | RANDOM) % ($2 - $1 + 1) + $1 )); }
 need() { [ -d "$M/$1" ] || { echo "unknown disk '$1'"; exit 1; }; }
-files() { find "$M/$1" -type f ! -name 'snapraid.*' ! -path '*/lost+found/*' ! -path '*/.snapraid/*'; }
+files() { find "$M/$1" -type f ! -name 'snapraid.*' ! -path '*/lost+found/*' ! -path '*/.snapraid/*' ! -path '*/.lab-space/*'; }
 
 case "${1:-}" in
 status)
@@ -37,7 +38,14 @@ status)
 seed)
     need "$2"; d=$M/$2; n=${2#[a-z]}
     total_kb=$(df -k --output=size "$d" | tail -1)
-    target_kb=$(( total_kb * (20 + (n * 17) % 45) / 100 ))   # each disk filled to a different level
+    pct=$(( 20 + (n * 17) % 45 ))
+    target_kb=$(( total_kb * pct / 100 ))   # each disk filled to a different level
+    # a disk of a terabyte or more: some real files, the rest of its level taken by "lab space"
+    large=0
+    if [ "$total_kb" -ge 878000000 ]; then
+        large=1
+        [ "$target_kb" -gt $(( ${LAB_SEED_REAL_MB:-400} * 1024 )) ] && target_kb=$(( ${LAB_SEED_REAL_MB:-400} * 1024 ))
+    fi
     dirs=(Movies Music Photos/2024 Photos/2025 Documents/Taxes Documents/Projects Backups/laptop)
     exts=(mkv flac jpg jpg pdf txt tar)
     used=0; i=0
@@ -49,7 +57,8 @@ seed)
         touch -d "@$(( $(date +%s) - $(rnd 86400 77760000) ))" "$f"   # a library collected over the years, not written just now
         used=$((used + kb)); i=$((i + 1))
     done
-    echo "[lab] seeded $2 with $i files ($((used / 1024)) MiB)" ;;
+    [ $large = 1 ] && "$0" space "$2" "$pct" >/dev/null
+    echo "[lab] seeded $2 with $i files ($((used / 1024)) MiB)$([ $large = 1 ] && echo ", $(df -h --output=used "$d" | tail -1 | tr -d ' ') shown as used")" ;;
 churn)
     for d in $M/d* $M/m* $M/f*; do
         [ -d "$d" ] || continue
@@ -91,6 +100,22 @@ fill)
     for i in $(seq 1 "$n"); do head -c 5M /dev/urandom > "$2/Fill/fill-$(date +%s)-$i.bin"; done
     find "$2/Fill" -type f -exec touch -d '1 hour ago' {} +
     echo "[lab] wrote $((n * 5)) MB in $2/Fill" ;;
+space)
+    # Room taken without writing it: a preallocated file (unwritten blocks, only metadata reaches the image) in
+    # the hidden folder .lab-space, which "nohidden" keeps out of the parity. A disk of terabytes looks used
+    # like a real one while its sparse image stays small.
+    need "$2"; d=$M/$2
+    read -r size used < <(df -B1 --output=size,used "$d" | tail -1)
+    case ${3:-} in
+    0) rm -rf "$d/.lab-space"; echo "[lab] $2 gave back the room it had taken"; exit 0 ;;
+    +[0-9]*) add=$(( ${3#+} * 1000000000 )) ;;
+    [0-9]*) add=$(( size / 100 * $3 - used )) ;;
+    *) echo "usage: lab space <disk> <percent used>|+<GB>|0"; exit 1 ;;
+    esac
+    [ "$add" -gt 0 ] || { echo "[lab] $2 is already that full"; exit 0; }
+    mkdir -p "$d/.lab-space"
+    fallocate -l "$add" "$d/.lab-space/space-$(date +%s%N).bin" || exit 1
+    echo "[lab] $2: $((add / 1000000000)) GB more taken, $(df --output=pcent "$d" | tail -1 | tr -d ' ') used" ;;
 dup)
     pool=${2:-/mnt/storage}
     branches=$(getfattr --only-values -n user.mergerfs.branches "$pool/.mergerfs" 2>/dev/null)
@@ -102,10 +127,11 @@ dup)
 reformat)
     need "$2"; dev=$(findmnt -n -o SOURCE "$M/$2"); fs=$(findmnt -n -o FSTYPE "$M/$2")
     umount "$M/$2" || exit 1
+    large=; [ "$(blockdev --getsize64 "$dev")" -ge 900000000000 ] && large=1   # as the entrypoint formats a large disk
     case $fs in
-    xfs) mkfs.xfs -q -f -L "$2" "$dev" ;;
+    xfs) mkfs.xfs -q -f ${large:+-l size=64m} -L "$2" "$dev" ;;
     btrfs) mkfs.btrfs -q -f -L "$2" "$dev" >/dev/null ;;
-    *) mkfs.ext4 -q -F -m 0 -L "$2" "$dev" ;;
+    *) mkfs.ext4 -q -F -m 0 ${large:+-T largefile4 -J size=64} -L "$2" "$dev" ;;
     esac && mount "$dev" "$M/$2" || exit 1
     uuid=$(blkid -p -s UUID -o value "$dev")
     # the entry of the lab in fstab follows the disk: it is the same disk, emptied
@@ -144,8 +170,8 @@ disks)
         read -r a r <<< "$(role "$d" | head -1)"
         fs=-; used=-
         if mountpoint -q "$M/$d"; then fs=$(findmnt -n -o FSTYPE "$M/$d"); used=$(df --output=pcent "$M/$d" | tail -1 | tr -d ' '); fi
-        size=$(( $(stat -c %s "$L/img/$d.img" 2>/dev/null || echo 0) / 1048576 ))
-        printf '%-5s %-8s %-22s %-5s %-28s %5s M  %-5s %s\n' "$d" "$a" "$r" "$k" "$MODEL" "$size" "$fs" "$used"
+        size=$(numfmt --to=si --round=nearest --suffix=B "$(stat -c %s "$L/img/$d.img" 2>/dev/null || echo 0)")   # 268MB, 12TB
+        printf '%-5s %-8s %-22s %-5s %-28s %7s  %-5s %s\n' "$d" "$a" "$r" "$k" "$MODEL" "$size" "$fs" "$used"
     done < $L/etc/lab-disks ;;
 inbox)
     I=${LAB_DIR:-/lab}/notify/inbox; mkdir -p "$I"

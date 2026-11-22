@@ -162,15 +162,28 @@ so the lab is built again). `docker exec snapraid-lab lab disks` prints this tab
 | `d3` | default | data | SAS HDD 7200 rpm, a few grown defects, runs hot | 768 MB | ext4 |
 | `d4` | default | data | SATA SSD | 384 MB | Btrfs |
 | `p1`, `p2` | default | parity, 2-parity | HDD | 1024 MB | ext4 |
-| `s1` | none | blank spare, larger than the parity | HDD | 2048 MB | none |
-| `s2` | none | blank spare, removable | USB HDD | 320 MB | none |
-| `m1`, `m2` | media | data | HDD, shingled HDD | 1024, 768 MB | XFS |
-| `q1`, `q2` | media | one parity level split over two disks | HDD | 256, 768 MB | ext4 |
-| `f1`, `f2` | flash | data | NVMe | 384 MB | Btrfs |
-| `f3` | flash | data | SATA SSD | 512 MB | Btrfs |
-| `g1` | flash | parity | NVMe | 640 MB | ext4 |
+| `s1` | none | blank spare, larger than the parity | HDD | 16 TB | none |
+| `s2` | none | blank spare, removable | USB HDD | 1 TB | none |
+| `m1`, `m2`, `m3` | media | data | HDD, shingled HDD, HDD | 12, 6, 8 TB | XFS |
+| `q1`, `q2` | media | one parity level split over two disks | HDD | 256 MB, 12 TB less 256 MB | ext4, XFS |
+| `f1`, `f2` | flash | data | NVMe | 2 TB | Btrfs |
+| `f3` | flash | data | SATA SSD | 1 TB | Btrfs |
+| `g1` | flash | parity | NVMe | 2 TB | ext4 |
 | `x1` | none | mounted, pooled in `/mnt/scratch`, no parity | SATA SSD | 256 MB | ext4 |
-| `u1` | none | mounted on its own, no parity | USB HDD | 512 MB | ext4 |
+| `u1` | none | mounted on its own, no parity | USB HDD | 2 TB | ext4 |
+
+**Disks of terabytes, on a few hundred MB of real space.** A size like `12T` or `500G` in
+`LAB_DISK_SIZES` is a real drive of that label (its IDEMA count of sectors, so SMART and the pages
+show what such a drive shows). The images are sparse, and a large disk gets a GPT, a small XFS log or
+ext4 journal and fewer ext4 inodes, so formatting it writes about 65 MB instead of gigabytes.
+`lab seed` writes at most 400 MB of real files on a large disk (`LAB_SEED_REAL_MB`) and takes the
+rest of its level with `lab space`: a preallocated file in the hidden folder `.lab-space`, whose blocks
+are never written and which `nohidden` keeps out of the parity. The parity disks of a large array get
+as much room taken as the parity of the fullest data disk would need. All the showcase disks together
+take a few GB of the host. What needs a disk that is really full stays small, with real files: the
+default array (unbalanced pool, mass delete, dead disks, the full-disk tips), `q1` (the first half of
+the split parity fills up) and `x1` (too small to hold a parity). A disk formatted from the UI is
+formatted with the default options of `mkfs`: on the 16 TB spare that writes up to 2 GB of log.
 
 Four pools, each placing new files in a different way: `/mnt/storage` (default array, `pfrd`),
 `/mnt/media` (`mfs`), `/mnt/flash` (`epmfs`, which the advisor of the Storage page has something

@@ -25,7 +25,7 @@ CODE=; BODY=
 
 [ "$(cat $LAB/etc/lab-preset 2>/dev/null)" = ready ] || { echo "refusing to run: this lab was not started with LAB_PRESET=ready"; exit 99; }
 [ "$(cat $LAB/etc/lab-showcase 2>/dev/null)" = 1 ] || { echo "refusing to run: this lab was not started with LAB_SHOWCASE=1"; exit 99; }
-for d in d1 d2 d3 d4 p1 p2 s1 s2 m1 m2 q1 q2 f1 f2 f3 g1 x1 u1; do grep -qx "$d" $LAB/etc/lab-disks || { echo "refusing to run: the lab has no disk $d"; exit 99; }; done
+for d in d1 d2 d3 d4 p1 p2 s1 s2 m1 m2 m3 q1 q2 f1 f2 f3 g1 x1 u1; do grep -qx "$d" $LAB/etc/lab-disks || { echo "refusing to run: the lab has no disk $d"; exit 99; }; done
 
 ok()   { PASS=$((PASS + 1)); echo "ok    $1"; }
 fail() { FAILS=$((FAILS + 1)); echo "FAIL  $1"; [ -n "${2:-}" ] && echo "      $2"; }
@@ -87,7 +87,7 @@ ARR=$(get $U/array)
 is "default: four data disks" "$(echo "$ARR" | jq .data_disks_count)" 4
 is "default: two parity levels" "$(echo "$ARR" | jq .parity_disks_count)" 2
 is "default: two disks watched but not in the array" "$(echo "$ARR" | jq .extra_disks_count)" 2
-is "media: two data disks" "$(get $AM/array | jq .data_disks_count)" 2
+is "media: three data disks" "$(get $AM/array | jq .data_disks_count)" 3
 is "media: one parity level" "$(get $AM/array | jq .parity_disks_count)" 1
 is "flash: three data disks" "$(get $AF/array | jq .data_disks_count)" 3
 is "the arrays may run together" "$(get $V2/config | jq .array_parallel)" true
@@ -95,9 +95,14 @@ is "the arrays may run together" "$(get $V2/config | jq .array_parallel)" true
 # ---------------------------------------------------------------------------
 section "disks of different sizes"
 
+idema() { echo $(( (97696368 + 1953504 * ($1 - 50)) * 512 )); }   # bytes of a real drive of <GB> GB
 for kv in $(cat $LAB/etc/lab-sizes); do
-    d=${kv%%=*}
-    is "$d is ${kv#*=} MB" "$(( $(stat -c %s $LAB/img/$d.img) / 1048576 ))" "${kv#*=}"
+    d=${kv%%=*}; v=${kv#*=}
+    case $v in
+    *T) is "$d is a $v drive" "$(stat -c %s $LAB/img/$d.img)" "$(idema $(( ${v%T} * 1000 )))" ;;
+    *G) is "$d is a $v drive" "$(stat -c %s $LAB/img/$d.img)" "$(idema ${v%G})" ;;
+    *) is "$d is $v MB" "$(( $(stat -c %s $LAB/img/$d.img) / 1048576 ))" "$v" ;;
+    esac
 done
 check "a spare is larger than the parity of the default array" test "$(stat -c %s $LAB/img/s1.img)" -gt "$(stat -c %s $LAB/img/p1.img)"
 check "the data disks of the default array are all different" test "$(for d in d1 d2 d3 d4; do stat -c %s $LAB/img/$d.img; done | sort -u | wc -l)" = 4
@@ -170,8 +175,13 @@ check "the parity of media names two files" grep -qE '^parity /mnt/lab/q1/snapra
 is "the array reports the two halves" "$(get $AM/disks | jq '[.parity_disks[] | select(.name == "parity") | .splits[]] | length')" 2
 check "the first half filled its disk" test "$(df --output=avail -k $D/q1 | tail -1)" -lt 4096
 check "the second half is in use" test "$(stat -c %s $D/q2/snapraid.parity)" -gt 1048576
+check "the large disks take little real room" test "$(du -sk $LAB/img/m1.img | cut -f1)" -lt 2097152
+check "a large data disk looks used" test "$(df --output=pcent $D/m1 | tail -1 | tr -dc 0-9)" -ge 20
+check "the room taken is not in the array" sh -c "! grep -q lab-space $LAB/etc/media.content"
+check "the parity looks as full as the fullest data disk" test "$(df --output=used -k $D/q2 | tail -1)" -ge "$(( $(df --output=used -k $D/m1 | tail -1) * 9 / 10 ))"
+is "a large disk has a GPT" "$(blkid -p -s PTTYPE -o value $(findmnt -n -o SOURCE $D/m1 | sed 's/p1$//'))" gpt
 check "each half is smaller than the largest data disk" test "$(stat -c %s $LAB/img/q2.img)" -lt "$(stat -c %s $LAB/img/m1.img)"
-check "the two halves together hold the fullest data disk" test "$(( $(stat -c %s $D/q1/snapraid.parity) + $(stat -c %s $D/q2/snapraid.parity) ))" -ge "$(( $(df --output=used -k $D/m2 | tail -1) * 512 ))"
+check "the two halves together hold the fullest data disk" test "$(( $(stat -c %s $D/q1/snapraid.parity) + $(stat -c %s $D/q2/snapraid.parity) ))" -ge "$(( $(du -sk --exclude=.lab-space $D/m2 | cut -f1) * 512 ))"
 
 # ---------------------------------------------------------------------------
 section "options of snapraid.conf"
@@ -345,7 +355,7 @@ is "without the credential the lab is open again" "$(curl -s -o /dev/null -w '%{
 section "the helper"
 
 L=$(lab disks)
-is "lab disks lists every disk" "$(echo "$L" | sed 1d | wc -l)" 18
+is "lab disks lists every disk" "$(echo "$L" | sed 1d | wc -l)" 19
 check "with the kinds" sh -c "echo '$L' | grep -E '^f1 ' | grep -q NVMe && echo '$L' | grep -E '^d3 ' | grep -q SAS && echo '$L' | grep -E '^u1 ' | grep -q USB && echo '$L' | grep -E '^d4 ' | grep -q SSD"
 check "with the split parity" sh -c "echo '$L' | grep -E '^q2 ' | grep -q 'parity (split)'"
 check "with the blank spares" sh -c "echo '$L' | grep -E '^s1 ' | grep -q 'blank spare'"
