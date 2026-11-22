@@ -347,6 +347,28 @@ is "with the password it answers" "$(curl -s -o /dev/null -w '%{http_code}' -u s
 # 401, or 429 when the daemon is slowing down repeated failures
 check "with a wrong password it does not" sh -c "curl -s -o /dev/null -w '%{http_code}' -u showcase:wrong $U/state | grep -qE '^(401|429)\$'"
 is "the metrics need no password" "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:7627/metrics)" 200
+# the login changed from the pages (POST host/login); one password is checked per second
+if grep -aq net_login_change "$(command -v snapraidd)"; then
+    login() { sleep 2; curl -s -o /dev/null -w '%{http_code}' -u "$1" -X POST -H 'Content-Type: application/json' --data-binary "$2" $U/host/login; }
+    sleep 2
+    check "the status tells the user of the login, not the hash" sh -c "curl -s -u showcase:secret $U/host | grep -A4 '\"login\"' | grep -q showcase && ! curl -s -u showcase:secret $U/host | grep -q argon2"
+    is "a change without the current password is refused" "$(login showcase:secret '{"user":"showcase","password":"another secret"}')" 400
+    is "a change with a wrong current password is refused" "$(login showcase:secret '{"user":"showcase","password":"another secret","current":"wrong"}')" 403
+    is "a short password is refused" "$(login showcase:secret '{"user":"showcase","password":"short","current":"secret"}')" 400
+    is "the name and the password are changed" "$(login showcase:secret '{"user":"visitor","password":"another secret","current":"secret"}')" 200
+    sleep 2
+    is "the old login is refused" "$(curl -s -o /dev/null -w '%{http_code}' -u showcase:secret $U/state)" 401
+    sleep 2
+    is "the new login is accepted" "$(curl -s -o /dev/null -w '%{http_code}' -u 'visitor:another secret' $U/state)" 200
+    check "the new credential is in the configuration, without the password" sh -c "grep -q '^net_auth_credential = visitor:.argon2id' $DC && ! grep -q 'another secret' $DC"
+    sed -i "s|^net_web_root = .*|net_login_change = 0\n&|" $DC
+    pkill -HUP -x snapraidd; sleep 3
+    is "with net_login_change = 0 a change is refused" "$(login 'visitor:another secret' '{"user":"showcase","password":"secret again","current":"another secret"}')" 403
+    sleep 2
+    is "and the login stays" "$(curl -s -o /dev/null -w '%{http_code}' -u 'visitor:another secret' $U/state)" 200
+else
+    skip "the login changed from the pages" "this daemon has no net_login_change"
+fi
 cp $DC.showcase-test $DC; rm -f $DC.showcase-test
 pkill -HUP -x snapraidd; sleep 3
 is "without the credential the lab is open again" "$(curl -s -o /dev/null -w '%{http_code}' $U/state)" 200

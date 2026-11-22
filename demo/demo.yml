@@ -10,3 +10,5 @@ services:
     environment:
       # user:password of the browser login; empty: no login
       LAB_AUTH: "${DEMO_AUTH-demo:demo}"
+      # a visitor cannot change the login and lock the others out until the next reset
+      LAB_LOGIN_FIXED: "1"

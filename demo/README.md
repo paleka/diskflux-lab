@@ -6,7 +6,7 @@ from the network, protected by a login, and thrown away and started again every
 
 | File | What it does |
 |---|---|
-| `demo.yml` | Compose override: publishes port 7627 on every address, login `demo` / `demo` (`DEMO_AUTH=user:password` to change it, `DEMO_AUTH=` for none) |
+| `demo.yml` | Compose override: publishes port 7627 on every address, login `demo` / `demo` (`DEMO_AUTH=user:password` to change it, `DEMO_AUTH=` for none), which visitors cannot change from the System page (`net_login_change = 0`) |
 | `reset.sh` | Removes the lab with its disks and starts a new one |
 | `demo-reset.service`, `demo-reset.timer` | Run `reset.sh` 30 seconds after boot and every 25 minutes |
 | `upgrade.sh` | Moves the demo to a release of SnapRAID Daemon and to the newest lab, rebuilds the image and starts it |

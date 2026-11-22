@@ -145,6 +145,7 @@ The first start takes a minute or two: it writes about 2 GB of sample files and 
 arrays. The disk images are sparse and take about 3 GB in the Docker volume.
 
 To try the login of the daemon (`net_auth_credential`): `LAB_AUTH=lab:secret docker compose up --build`.
+The name and the password can then be changed on the System page, under “Login”; `LAB_LOGIN_FIXED=1` turns that off (`net_login_change = 0`), as the public demo does.
 
 A small lab, one array of equal disks (4 data, 2 parity) with two blank spares, and nothing else:
 

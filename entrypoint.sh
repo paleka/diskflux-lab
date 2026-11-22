@@ -20,6 +20,7 @@ TYPES=${LAB_DISK_TYPES:-}          # per-disk kind, e.g. "d1=hdd d2=smr d3=sas d
 FSS=${LAB_DISK_FS:-}               # per-disk filesystem, e.g. "d2=xfs f1=btrfs"; the others get ext4
 SHOWCASE=${LAB_SHOWCASE:-0}        # 1: the configurations use the less common options of SnapRAID and of the daemon
 AUTH=${LAB_AUTH:-}                 # user:password, to try the login of the daemon (net_auth_credential)
+LOGIN_FIXED=${LAB_LOGIN_FIXED:-0}  # 1: the login cannot be changed from the pages (net_login_change = 0), for a lab open to visitors
 UI=${LAB_UI:-quiet}
 PRESET=${LAB_PRESET:-ready}        # ready: array already set up | blank: only empty disks, set it up from the UI
 PARITY_NAMES=(parity 2-parity 3-parity 4-parity 5-parity 6-parity)
@@ -506,6 +507,17 @@ if [ -n "$AUTH" ]; then
         log "login enabled for the user '${AUTH%%:*}'"
     else
         log "WARNING: cannot make the credential of LAB_AUTH, the login stays off"
+    fi
+fi
+# The login stays the one above, when asked. A daemon older than the option refuses a
+# configuration that has it, so it is written only for a daemon that knows it.
+sed -i '/^net_login_change/d' $LAB/etc/snapraidd.conf
+if [ "$LOGIN_FIXED" = 1 ]; then
+    if grep -aq net_login_change "$(command -v snapraidd)"; then
+        sed -i "s|^net_web_root = .*|net_login_change = 0\n&|" $LAB/etc/snapraidd.conf
+        log "the login cannot be changed from the pages"
+    else
+        log "this daemon has no net_login_change: nothing to turn off"
     fi
 fi
 grep -q '^net_acl' $LAB/etc/snapraidd.conf || sed -i 's|^net_web_root = .*|net_acl = +127.0.0.1,+10.0.0.0/8,+172.16.0.0/12,+192.168.0.0/16\n&|' $LAB/etc/snapraidd.conf

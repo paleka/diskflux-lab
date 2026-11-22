@@ -25,6 +25,7 @@ services:
       LAB_PRESET: "${LAB_PRESET:-ready}"   # ready: arrays already built | blank: only empty disks, build them with the guided setup
       LAB_UI: "${LAB_UI:-quiet}"           # quiet | commander | brutale
       LAB_AUTH: "${LAB_AUTH:-}"            # user:password to try the login of the daemon; empty: no login
+      LAB_LOGIN_FIXED: "${LAB_LOGIN_FIXED:-0}"   # 1: the login cannot be changed from the System page
 
       # Array "default": mixed disks, two parity levels
       LAB_DATA_DISKS: "4"            # data disks d1..dN
