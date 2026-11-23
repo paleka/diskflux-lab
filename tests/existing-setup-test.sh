@@ -22,12 +22,13 @@
 #   snapraid-new.deb      SnapRAID 15
 #   daemon.deb            the daemon with the Storage page, built from the checkout
 #   installer.sh          its installer
+#   snapraid-daemon.deb   SnapRAID Daemon 2.2, the package of its author
 # The installer installs with apt: the container needs the network for the dependencies.
 
 [ "${LAB_EXISTING:-0}" = 1 ] || { echo "refusing to run: this container was not started by docker-compose.existing.yml"; exit 99; }
 
 PKG=${LAB_PKG:-/usr/local/share/lab/pkg}
-for f in snapraid-old.deb snapraid-migrate.deb snapraid-new.deb daemon.deb installer.sh; do
+for f in snapraid-old.deb snapraid-migrate.deb snapraid-new.deb daemon.deb installer.sh snapraid-daemon.deb; do
     [ -f "$PKG/$f" ] || { echo "refusing to run: $PKG/$f is missing, build the image with LAB_PACKAGES=1"; exit 99; }
 done
 
@@ -104,7 +105,8 @@ teardown() {
     for f in "$IMG"/*.img; do
         [ -f "$f" ] && for l in $(losetup -j "$f" -O NAME -n); do losetup -d "$l" 2>/dev/null; done
     done
-    apt-get purge -y -q snapraid snapraid-daemon-storage snapraid-daemon >/dev/null 2>&1
+    # one package at a time: apt refuses the whole list when one name is unknown to it
+    for p in snapraid-daemon-storage snapraid-daemon snapraid; do dpkg --purge "$p" >/dev/null 2>&1; done
     rm -rf "$IMG" /etc/snapraid.conf* /etc/snapraidd.conf* /etc/snapraidd.d /etc/snapraid /var/snapraid /var/log/snapraid \
         /etc/cron.d/snapraid /usr/local/bin/snapraid /usr/local/bin/snapraid-nightly.sh /usr/local/etc/snapraid.conf \
         /etc/fstab.snapraidd.bak /mnt/disk? /mnt/parity? /mnt/storage
@@ -460,6 +462,23 @@ install; RC=$?
 check "a machine with no array: the installer completes" test $RC = 0
 check "the daemon has its usual schedule" grep -qx "maintenance_schedule = 02:00" /etc/snapraidd.conf
 check "and nothing is said about an existing array" not grep -q "already in use" "$W/install.log"
+
+teardown
+apt-get install -y -q "$PKG/snapraid-new.deb" "$PKG/snapraid-daemon.deb" >/dev/null 2>&1
+check "a machine with SnapRAID Daemon of its author installed" installed snapraid-daemon
+echo "# edited by hand" >> /etc/snapraidd.conf
+official_state() {
+    dpkg-query -W -f='${Package} ${Version} ${Status}\n' | sort
+    dpkg -L snapraid-daemon | while read -r f; do [ -f "$f" ] && sha256sum "$f"; done
+    stat -c '%n %s %Y %a %U' /etc/snapraidd.conf
+}
+official_state > "$W/official1"
+install; RC=$?
+official_state > "$W/official2"
+check "SnapRAID Daemon installed: it stops" test $RC = 1
+check "it says that DiskFlux never replaces it" grep -q "DiskFlux never replaces" "$W/install.log"
+check "its package, its files and its configuration are as they were" cmp "$W/official1" "$W/official2"
+check "nothing was installed" not installed snapraid-daemon-storage
 
 teardown
 echo
