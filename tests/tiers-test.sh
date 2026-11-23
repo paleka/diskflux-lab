@@ -14,7 +14,7 @@
 # LAB_TEST_SLOW=0 skips the sync run again by the daemon, which waits a minute and a half.
 # Every test prints "ok" or "FAIL" with the reason; the exit code is the number of failures.
 
-U=http://127.0.0.1:7627/snapraid/v1
+U=http://127.0.0.1:7700/snapraid/v1
 H=$U/host
 S=$U/storage
 LAB=${LAB_DIR:-/lab}

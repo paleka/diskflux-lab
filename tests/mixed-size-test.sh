@@ -13,7 +13,7 @@
 # Disks (MB): data d1=256 d2=512 d3=1024 d4=384, parity p1=1024 p2=1024,
 #             spares s1=2048 (larger than the parity) s2=128 (tiny) s3=640 s4=640 (a split parity).
 
-U=http://127.0.0.1:7627/snapraid/v1
+U=http://127.0.0.1:7700/snapraid/v1
 S=$U/storage
 M=/mnt/lab
 LAB=${LAB_DIR:-/lab}

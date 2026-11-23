@@ -461,7 +461,7 @@ sys_log_directory = $LAB/log
 sys_log_retention_days = 120
 net_enabled = 1
 # all interfaces of the container; docker publishes it on the Mac's localhost only
-net_port = 7627
+net_port = 7700
 net_security_headers = 1
 net_allowed_origin = self
 net_config_full_access = 1
@@ -608,7 +608,7 @@ seed_space() {
 }
 [ "$SHOWCASE" = 1 ] && seed_space
 
-log "starting diskflux, UI '$UI' on http://localhost:7627"
+log "starting diskflux, UI '$UI' on http://localhost:7700"
 # -N: serve the UI files straight from /ui/<name> without caching, so edits show up on reload
 # the lab never suspends or powers off the machine when idle: the daemon only logs it
 export SNAPRAIDD_HOST_DRYRUN=1

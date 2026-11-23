@@ -6,7 +6,7 @@
 services:
   snapraid:
     ports: !override
-      - "7627:7627"
+      - "7627:7700"   # the demo stays on 7627 outside: its tunnel points there; DiskFlux listens on 7700 inside
     environment:
       # user:password of the browser login; empty: no login
       LAB_AUTH: "${DEMO_AUTH-demo:demo}"

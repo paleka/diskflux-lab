@@ -5,9 +5,9 @@
 # and of the advanced mode (shots-tiers.json): run it inside the lab
 # (docker exec -it snapraid-lab bash), then
 #     node docs/tools/shots.mjs docs/tools/shots-tiers.json
-U=http://127.0.0.1:7627/snapraid/v1
+U=http://127.0.0.1:7700/snapraid/v1
 post() { curl -s -X POST -H 'Content-Type: application/json' --data-binary "$2" "$U/$1" > /dev/null; }
-serial() { curl -s http://127.0.0.1:7627/snapraid/v2/disks | jq -r "[.data_disks[], .parity_disks[]] | .[] | select(.name==\"$1\") | .devices[0].serial"; }
+serial() { curl -s http://127.0.0.1:7700/snapraid/v2/disks | jq -r "[.data_disks[], .parity_disks[]] | .[] | select(.name==\"$1\") | .devices[0].serial"; }
 job_wait() { for _ in $(seq 1 300); do [ "$(curl -s $U/storage/job | jq -r .job.running)" = false ] && return; sleep 1; done; }
 
 # the blank USB disk s2 becomes the fast disk of the pool of the default array

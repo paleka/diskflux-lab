@@ -34,7 +34,7 @@ done
 
 W=/var/lab-existing
 IMG=$W/img
-U=http://127.0.0.1:7627/snapraid
+U=http://127.0.0.1:7700/snapraid
 AUTH="admin:test"
 LOCK=/var/snapraid/snapraid.content.lock
 DAEMON=/usr/bin/diskflux

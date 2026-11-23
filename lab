@@ -26,7 +26,7 @@ USAGE
 }
 # the daemon, from inside the container; with LAB_AUTH it wants the login
 api() { curl -s -m 30 ${LAB_AUTH:+-u "$LAB_AUTH"} "$@"; }
-base() { [ "${1:-default}" = default ] && echo http://127.0.0.1:7627/snapraid/v1 || echo "http://127.0.0.1:7627/snapraid/v1/arrays/$1"; }
+base() { [ "${1:-default}" = default ] && echo http://127.0.0.1:7700/snapraid/v1 || echo "http://127.0.0.1:7700/snapraid/v1/arrays/$1"; }
 rnd() { echo $(( (RANDOM << 15 | RANDOM) % ($2 - $1 + 1) + $1 )); }
 need() { [ -d "$M/$1" ] || { echo "unknown disk '$1'"; exit 1; }; }
 files() { find "$M/$1" -type f ! -name 'snapraid.*' ! -path '*/lost+found/*' ! -path '*/.snapraid/*' ! -path '*/.lab-space/*'; }

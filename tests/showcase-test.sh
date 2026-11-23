@@ -13,8 +13,8 @@
 # LAB_TEST_SLOW=0 skips the temperature limit, which waits the three minutes of temp_sleep.
 # Every test prints "ok" or "FAIL" with the reason; the exit code is the number of failures.
 
-U=http://127.0.0.1:7627/snapraid/v1
-V2=http://127.0.0.1:7627/snapraid/v2
+U=http://127.0.0.1:7700/snapraid/v1
+V2=http://127.0.0.1:7700/snapraid/v2
 S=$U/storage
 AM=$U/arrays/media
 AF=$U/arrays/flash
@@ -346,7 +346,7 @@ is "without the password the daemon answers 401" "$(curl -s -o /dev/null -w '%{h
 is "with the password it answers" "$(curl -s -o /dev/null -w '%{http_code}' -u showcase:secret $U/state)" 200
 # 401, or 429 when the daemon is slowing down repeated failures
 check "with a wrong password it does not" sh -c "curl -s -o /dev/null -w '%{http_code}' -u showcase:wrong $U/state | grep -qE '^(401|429)\$'"
-is "the metrics need no password" "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:7627/metrics)" 200
+is "the metrics need no password" "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:7700/metrics)" 200
 # the login changed from the pages (POST host/login); one password is checked per second
 if grep -aq net_login_change "$(command -v diskflux)"; then
     login() { sleep 2; curl -s -o /dev/null -w '%{http_code}' -u "$1" -X POST -H 'Content-Type: application/json' --data-binary "$2" $U/host/login; }

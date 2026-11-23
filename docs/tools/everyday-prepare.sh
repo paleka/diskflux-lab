@@ -4,9 +4,9 @@
 # Puts the showcase lab in the state of the pictures of the pages for everyday use
 # (shots-everyday.json): run it inside the lab (docker exec -it snapraid-lab bash), then
 #     node docs/tools/shots.mjs docs/tools/shots-everyday.json
-H=http://127.0.0.1:7627/snapraid/v1/host
+H=http://127.0.0.1:7700/snapraid/v1/host
 post() { curl -s -X POST -H 'Content-Type: application/json' --data-binary "$2" "$H/$1" > /dev/null; }
-serial() { curl -s http://127.0.0.1:7627/snapraid/v2/disks | jq -r "[.data_disks[], .parity_disks[]] | .[] | select(.name==\"$1\") | .devices[0].serial"; }
+serial() { curl -s http://127.0.0.1:7700/snapraid/v2/disks | jq -r "[.data_disks[], .parity_disks[]] | .[] | select(.name==\"$1\") | .devices[0].serial"; }
 
 # a share for everybody, one for a person, and the person
 post share_user_set '{"user":"anna","password":"anna-lab"}'
@@ -23,6 +23,6 @@ post settings "$(jq -n --arg b "$bays" '{"doc.bays": $b, "smart_short": "Sun 03:
 post smart_test "{\"device\":\"$(readlink -f "$(findmnt -no SOURCE /mnt/lab/d1)" | sed 's/p[0-9]*$//')\",\"kind\":\"short\"}"
 # files deleted, and the maintenance that stops for the OK
 lab delete d2 55 > /dev/null
-curl -s -X POST -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:7627/snapraid/v1/maintenance > /dev/null
+curl -s -X POST -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:7700/snapraid/v1/maintenance > /dev/null
 sleep 30
 echo "ready for the pictures"

@@ -10,9 +10,9 @@ const b = await chromium.launch({ executablePath: process.env.CHROME || undefine
 for (const s of shots) {
     const ctx = await b.newContext({ viewport: { width: s.w || 1360, height: s.h || 850 }, deviceScaleFactor: 1 });
     const p = await ctx.newPage();
-    await p.goto('http://127.0.0.1:7627/');
+    await p.goto('http://127.0.0.1:7700/');
     await p.evaluate(a => localStorage.setItem('array', a), s.array || 'default');
-    await p.goto('http://127.0.0.1:7627/' + s.hash);
+    await p.goto('http://127.0.0.1:7700/' + s.hash);
     await p.reload();
     await p.waitForTimeout(2200);
     for (const st of s.steps || []) {

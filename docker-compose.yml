@@ -1,4 +1,4 @@
-# SnapRAID lab: `docker compose up --build` from this folder, then open http://localhost:7627
+# SnapRAID lab: `docker compose up --build` from this folder, then open http://localhost:7700
 #
 # DAEMON_SRC is the checkout of https://github.com/paleka/diskflux (branch storage).
 # By default it is expected next to this folder.
@@ -20,7 +20,7 @@ services:
     privileged: true
     init: true
     ports:
-      - "127.0.0.1:7627:7627"
+      - "127.0.0.1:7700:7700"
     environment:
       LAB_PRESET: "${LAB_PRESET:-ready}"   # ready: arrays already built | blank: only empty disks, build them with the guided setup
       LAB_UI: "${LAB_UI:-quiet}"           # quiet | commander | brutale

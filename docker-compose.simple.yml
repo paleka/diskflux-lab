@@ -14,7 +14,7 @@ services:
     privileged: true
     init: true
     ports:
-      - "127.0.0.1:7627:7627"
+      - "127.0.0.1:7700:7700"
     environment:
       LAB_PRESET: "${LAB_PRESET:-ready}"
       LAB_UI: "${LAB_UI:-quiet}"

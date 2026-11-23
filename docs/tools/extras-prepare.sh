@@ -7,7 +7,7 @@
 #     node docs/tools/shots.mjs docs/tools/shots-extras.json
 # The lab has no UPS, no other computer and no mail: it writes stand-ins of upsc, mount.cifs and
 # mail, like tests/extras-test.sh does, and leaves them in place for the pictures.
-U=http://127.0.0.1:7627/snapraid/v1
+U=http://127.0.0.1:7700/snapraid/v1
 post() { curl -s -X POST -H 'Content-Type: application/json' --data-binary "$2" "$U/$1" > /dev/null; }
 tasks_wait() {
     sleep 2

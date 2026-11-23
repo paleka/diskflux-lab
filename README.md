@@ -133,7 +133,7 @@ Put the two checkouts side by side:
     cd diskflux-lab
     docker compose up --build
 
-Then open http://localhost:7627
+Then open http://localhost:7700
 
 A daemon checkout somewhere else: `DAEMON_SRC=/path/to/diskflux-daemon docker compose up --build`.
 Docker Compose 2.17 or later is needed (`additional_contexts`).
@@ -461,7 +461,7 @@ day and shows a forecast after a week.
 
 Changes to the C sources of the daemon need `docker compose up --build`.
 
-REST API: `http://localhost:7627/snapraid/v1/{state,array,disks,tasks,activity,system,storage}`,
+REST API: `http://localhost:7700/snapraid/v1/{state,array,disks,tasks,activity,system,storage}`,
 `/snapraid/v2/config`, Prometheus at `/metrics`. Full spec in `diskflux.yaml` of the daemon.
 
 ## Making things happen

@@ -9,7 +9,7 @@
 #
 # Every test prints "ok" or "FAIL" with the reason; the exit code is the number of failures.
 
-U=http://127.0.0.1:7627/snapraid/v1
+U=http://127.0.0.1:7700/snapraid/v1
 S=$U/storage
 T=${LAB_TEST_DIR:-/mnt/t}
 LAB=${LAB_DIR:-/lab}

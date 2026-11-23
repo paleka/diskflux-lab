@@ -14,7 +14,7 @@
 # LAB_TEST_SLOW=0 skips the backup started by plugging the disk in, which waits two minutes.
 # Every test prints "ok" or "FAIL" with the reason; the exit code is the number of failures.
 
-U=http://127.0.0.1:7627/snapraid/v1
+U=http://127.0.0.1:7700/snapraid/v1
 H=$U/host
 S=$U/storage
 LAB=${LAB_DIR:-/lab}
@@ -258,7 +258,7 @@ post smart_test "{\"device\":\"$D1N\",\"kind\":\"short\"}";  expect "a short sel
 req GET "$H/smart?device=$D1N"
 expect "its log is read" 200
 check "and it says it's running" test "$(bj .text | grep -c 'in progress')" -ge 1
-post power_save "{\"disk\":\"$(curl -s http://127.0.0.1:7627/snapraid/v2/disks | jq -r '[.data_disks[] | select(.name=="d1") | .devices[0].serial][0]')\",\"apm\":\"127\",\"wcache\":true}"
+post power_save "{\"disk\":\"$(curl -s http://127.0.0.1:7700/snapraid/v2/disks | jq -r '[.data_disks[] | select(.name=="d1") | .devices[0].serial][0]')\",\"apm\":\"127\",\"wcache\":true}"
 expect "power settings are saved" 202
 check "a disk refusing them is told" test "$(echo "$BODY" | jq -r .applied)" = false
 check "they are kept for the next start" test "$(host '.power[0].apm')" = 127

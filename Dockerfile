@@ -78,5 +78,5 @@ RUN if [ "$LAB_PACKAGES" = 1 ]; then \
      && echo "bef62b3e986ea77d8c368606f55b2a7ac5762d7a5fdfd319629dc529fad56939  snapraid-daemon.deb" | sha256sum -c -; \
     fi
 RUN chmod 755 /usr/libexec/lab/fake-smartctl /usr/sbin/lsblk /usr/local/share/lab/hook.sh /usr/local/share/lab/notify.sh /usr/local/bin/lab-entrypoint /usr/local/bin/lab /usr/local/share/lab/tests/*.sh
-EXPOSE 7627
+EXPOSE 7700
 ENTRYPOINT ["/usr/local/bin/lab-entrypoint"]

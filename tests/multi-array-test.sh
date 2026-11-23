@@ -11,8 +11,8 @@
 #
 # Every test prints "ok" or "FAIL" with the reason; the exit code is the number of failures.
 
-U=http://127.0.0.1:7627/snapraid/v1
-V2=http://127.0.0.1:7627/snapraid/v2
+U=http://127.0.0.1:7700/snapraid/v1
+V2=http://127.0.0.1:7700/snapraid/v2
 S=$U/storage
 M=$U/arrays/media
 T=${LAB_TEST_DIR:-/mnt/t}
@@ -356,11 +356,11 @@ check "and runs when the balance ends" test "$(last_task sync)" = "terminated 0"
 # ---------------------------------------------------------------------------
 section "metrics"
 
-MET=$(get http://127.0.0.1:7627/metrics)
+MET=$(get http://127.0.0.1:7700/metrics)
 check "the health of every array is exported" test "$(echo "$MET" | grep -c '^snapraid_arrays_health{array=')" = 2
 check "the metrics are of the default array" grep -q '^snapraid_array_data_disks_count 2$' <<< "$MET"
-check "or of the one asked" test "$(get 'http://127.0.0.1:7627/metrics?array=media' | grep -c '^snapraid_array_data_disks_count 2$')" = 1
-CODE=$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:7627/metrics?array=nosuch')
+check "or of the one asked" test "$(get 'http://127.0.0.1:7700/metrics?array=media' | grep -c '^snapraid_array_data_disks_count 2$')" = 1
+CODE=$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:7700/metrics?array=nosuch')
 check "an unknown array is not found" test "$CODE" = 404
 
 # ---------------------------------------------------------------------------
