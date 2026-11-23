@@ -25,13 +25,13 @@ RUN gcc -O2 -o /smartctl /src/smartctl-launcher.c
 
 # SnapRAID Daemon with the Storage page. Whatever was built in the checkout is dropped
 # (only ignored files are removed), then it is built out of tree.
-COPY --from=daemon . /src/snapraid-daemon
-RUN cd /src/snapraid-daemon \
- && git config --global --add safe.directory /src/snapraid-daemon \
+COPY --from=daemon . /src/diskflux
+RUN cd /src/diskflux \
+ && git config --global --add safe.directory /src/diskflux \
  && if [ -e .git ]; then git clean -Xfdq || true; fi \
  && ./autogen.sh \
  && mkdir /build-daemon && cd /build-daemon \
- && /src/snapraid-daemon/configure --prefix=/usr --sysconfdir=/etc && make -j"$(nproc)"
+ && /src/diskflux/configure --prefix=/usr --sysconfdir=/etc && make -j"$(nproc)"
 # Unit tests: the daemon selftest (validation, fstab editing, pool helpers) and the logic of the
 # Storage page. A failure stops the build.
 RUN cd /build-daemon && make check
@@ -41,9 +41,9 @@ RUN cd /build-daemon && make check
 # are for x86-64 only. The version comes from the tags of the checkout.
 ARG LAB_PACKAGES=0
 RUN mkdir /pkg && if [ "$LAB_PACKAGES" = 1 ]; then \
-        cd /src/snapraid-daemon && ./configure > /dev/null && make dist > /dev/null \
+        cd /src/diskflux && ./configure > /dev/null && make dist > /dev/null \
      && bash makedeb.sh > /dev/null \
-     && cp snapraid-daemon-storage_*_amd64.deb /pkg/daemon.deb && cp installer.sh /pkg/installer.sh; \
+     && cp diskflux_*_amd64.deb /pkg/daemon.deb && cp installer.sh /pkg/installer.sh; \
     fi
 
 FROM debian:bookworm-slim
@@ -51,8 +51,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         zlib1g e2fsprogs xfsprogs btrfs-progs fdisk util-linux mergerfs fuse3 rsync attr jq procps curl ca-certificates \
         samba-common-bin samba hdparm ethtool psmisc && rm -rf /var/lib/apt/lists/*
 COPY --from=build /build-engine/snapraid /usr/bin/snapraid
-COPY --from=build /build-daemon/snapraidd /usr/sbin/snapraidd
-COPY --from=build /build-daemon/quiet.zip /build-daemon/commander.zip /build-daemon/brutale.zip /usr/share/snapraidd/
+COPY --from=build /build-daemon/diskflux /usr/sbin/diskflux
+COPY --from=build /build-daemon/quiet.zip /build-daemon/commander.zip /build-daemon/brutale.zip /usr/share/diskflux/
 COPY --from=build /smartctl /usr/sbin/smartctl
 COPY fake-smartctl /usr/libexec/lab/fake-smartctl
 # In front of the real lsblk (/usr/bin) in the search path of the daemon: it gives the emulated disks a model and a bus.

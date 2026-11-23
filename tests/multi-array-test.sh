@@ -101,8 +101,8 @@ epoch() { date -d "$1" +%s 2>/dev/null || echo 0; }
 
 for _ in $(seq 1 60); do curl -s -o /dev/null $U/state && break; sleep 1; done
 
-DCONF=$LAB/etc/snapraidd.conf
-ADIR=$LAB/etc/snapraidd.d
+DCONF=$LAB/etc/diskflux.conf
+ADIR=$LAB/etc/diskflux.d
 MCONF=$LAB/etc/snapraid/media.conf
 
 # ---------------------------------------------------------------------------
@@ -366,7 +366,7 @@ check "an unknown array is not found" test "$CODE" = 404
 # ---------------------------------------------------------------------------
 section "arrays added and removed by hand"
 
-PID=$(pgrep -o -x snapraidd)
+PID=$(pgrep -o -x diskflux)
 printf 'engine_conf = %s/etc/snapraid/extra.conf\nmaintenance_schedule = 04:30\n' "$LAB" > $ADIR/extra.conf
 printf 'engine_conf = %s/etc/snapraid/bad.conf\nnet_port = 9999\n' "$LAB" > $ADIR/bad.conf
 printf 'maintenance_schedule = 04:30\n' > $ADIR/noconf.conf
@@ -466,8 +466,8 @@ check "and its new parity can rebuild its files" test "$(sums $T/d4)" = "$WANT"
 # ---------------------------------------------------------------------------
 section "after a restart of the daemon"
 
-kill "$PID"; for _ in $(seq 1 30); do pgrep -x snapraidd >/dev/null || break; sleep 1; done
-snapraidd -f -N -c $DCONF -C $LAB/etc/snapraid.conf -p /run/snapraidd.pid >/dev/null 2>&1 &
+kill "$PID"; for _ in $(seq 1 30); do pgrep -x diskflux >/dev/null || break; sleep 1; done
+diskflux -f -N -c $DCONF -C $LAB/etc/snapraid.conf -p /run/diskflux.pid >/dev/null 2>&1 &
 NEWPID=$!
 for _ in $(seq 1 60); do curl -s -o /dev/null $U/state && break; sleep 1; done
 tasks_wait $U; tasks_wait $M

@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Robert Paleka
-# End to end tests of the storage API of snapraidd, against the emulated disks of the lab.
+# End to end tests of the storage API of diskflux, against the emulated disks of the lab.
 #
 # DESTRUCTIVE: it formats the lab disks. It runs only in a lab started with LAB_PRESET=blank:
 #
@@ -181,7 +181,7 @@ cp /etc/fstab /tmp/fstab.before
 mount_api "UUID=$D1U2" $T/d1;                     expect "a filesystem is mounted" 200
 check "it is really mounted" mountpoint -q $T/d1
 check "fstab has its line" grep -qE "^UUID=$D1U2 $T/d1 ext4 defaults,noatime,nofail 0 2$" /etc/fstab
-check "the previous fstab is kept as backup" cmp -s /tmp/fstab.before "$(readlink -f /etc/fstab).snapraidd.bak"
+check "the previous fstab is kept as backup" cmp -s /tmp/fstab.before "$(readlink -f /etc/fstab).diskflux.bak"
 mount_api "UUID=$D1U2" $T/d1;                     expect "mounting on a used mount point is refused" 409 "already mounted"
 mount_api "UUID=$D1U2" $T/d1-again;               expect "the same filesystem is not mounted twice" 409 "already mounted at $T/d1"
 mkdir -p $T/full && touch $T/full/file
@@ -229,7 +229,7 @@ req PUT $S/engine_conf "{\"text\":\"$TEXT\"}";    expect "the configuration is w
 check "the file has the text" grep -q "^data d3 $T/d3$" "$CONF"
 check "the inventory returns it" test "$(curl -s $S | jq -r .engine_conf.text | head -1)" = "# written by the tests"
 req PUT $S/engine_conf "{\"text\":\"$TEXT# second\\n\"}"; expect "it is written again" 200
-check "the previous one is kept as .snapraidd.bak" test "$(tail -1 "$CONF.snapraidd.bak")" = "exclude /lost+found/"
+check "the previous one is kept as .diskflux.bak" test "$(tail -1 "$CONF.diskflux.bak")" = "exclude /lost+found/"
 
 fill $T/d1/Movies 12 3000; fill $T/d1/Music 30 200; fill $T/d2/Photos 40 150; fill $T/d3/Docs 25 60
 fill $T/d2/Movies/extra 2 2000
@@ -392,8 +392,8 @@ check "normal syncs work again" test "$(last_task sync)" = "terminated 0"
 # ---------------------------------------------------------------------------
 section "permission to change the storage"
 
-DCONF=$LAB/etc/snapraidd.conf; PID=$(pgrep -n -x snapraidd)
-cp $DCONF /tmp/snapraidd.conf.keep
+DCONF=$LAB/etc/diskflux.conf; PID=$(pgrep -n -x diskflux)
+cp $DCONF /tmp/diskflux.conf.keep
 sed -i 's/^net_storage_admin = 1/net_storage_admin = 0/' $DCONF; kill -HUP "$PID"; sleep 2
 req POST $S/mkdir "{\"path\":\"$T/denied\"}";      expect "with net_storage_admin = 0 changes are refused" 403 "net_storage_admin"
 req PUT $S/engine_conf '{"text":"# no\n"}';        expect "also the configuration" 403
@@ -405,7 +405,7 @@ refute "nothing was created" test -e $T/denied
 sed -i 's/^net_storage_admin = 0/net_storage_admin = 1/; /^net_acl/d; /^net_auth_credential/d' $DCONF; kill -HUP "$PID"; sleep 2
 req POST $S/mkdir "{\"path\":\"$T/denied\"}"
 expect "open to the network without credentials or access list: refused even with the option on" 403 "without protection"
-cp /tmp/snapraidd.conf.keep $DCONF; kill -HUP "$PID"; sleep 2
+cp /tmp/diskflux.conf.keep $DCONF; kill -HUP "$PID"; sleep 2
 req POST $S/mkdir "{\"path\":\"$T/allowed\"}";     expect "with the access list back, changes work again" 200
 
 # ---------------------------------------------------------------------------

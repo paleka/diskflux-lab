@@ -223,7 +223,7 @@ is "flash: no spin down" "$(echo "$CFF" | jq -r .spindown_idle_minutes)" 0
 is "flash: no sync threshold" "$(echo "$CFF" | jq '.sync_threshold_deletes + .sync_threshold_updates')" 0
 is "flash: a full scrub at every run" "$(echo "$CFF" | jq .scrub_percentage)" 100
 check "the logs of the commands are compressed" sh -c "ls $LAB/log/*.log.gz $LAB/log/media/*.log.gz $LAB/log/flash/*.log.gz"
-check "sys_smartignore is set" grep -q '^sys_smartignore = \* Spin_Up_Time Raw_Read_Error_Rate' $LAB/etc/snapraidd.conf
+check "sys_smartignore is set" grep -q '^sys_smartignore = \* Spin_Up_Time Raw_Read_Error_Rate' $LAB/etc/diskflux.conf
 
 # ---------------------------------------------------------------------------
 section "a maintenance of every array: hook and notifications"
@@ -336,19 +336,19 @@ fi
 # ---------------------------------------------------------------------------
 section "the login"
 
-DC=$LAB/etc/snapraidd.conf
-CRED=$(snapraidd -g showcase:secret 2>/dev/null | grep -oE '[^ =]+:\$argon2id\$.*' | head -1)
+DC=$LAB/etc/diskflux.conf
+CRED=$(diskflux -g showcase:secret 2>/dev/null | grep -oE '[^ =]+:\$argon2id\$.*' | head -1)
 check "a credential is generated" test -n "$CRED"
 cp $DC $DC.showcase-test
 sed -i "s|^net_web_root = .*|net_auth_credential = $CRED\n&|" $DC
-pkill -HUP -x snapraidd; sleep 3
+pkill -HUP -x diskflux; sleep 3
 is "without the password the daemon answers 401" "$(curl -s -o /dev/null -w '%{http_code}' $U/state)" 401
 is "with the password it answers" "$(curl -s -o /dev/null -w '%{http_code}' -u showcase:secret $U/state)" 200
 # 401, or 429 when the daemon is slowing down repeated failures
 check "with a wrong password it does not" sh -c "curl -s -o /dev/null -w '%{http_code}' -u showcase:wrong $U/state | grep -qE '^(401|429)\$'"
 is "the metrics need no password" "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:7627/metrics)" 200
 # the login changed from the pages (POST host/login); one password is checked per second
-if grep -aq net_login_change "$(command -v snapraidd)"; then
+if grep -aq net_login_change "$(command -v diskflux)"; then
     login() { sleep 2; curl -s -o /dev/null -w '%{http_code}' -u "$1" -X POST -H 'Content-Type: application/json' --data-binary "$2" $U/host/login; }
     sleep 2
     check "the status tells the user of the login, not the hash" sh -c "curl -s -u showcase:secret $U/host | grep -A4 '\"login\"' | grep -q showcase && ! curl -s -u showcase:secret $U/host | grep -q argon2"
@@ -362,7 +362,7 @@ if grep -aq net_login_change "$(command -v snapraidd)"; then
     is "the new login is accepted" "$(curl -s -o /dev/null -w '%{http_code}' -u 'visitor:another secret' $U/state)" 200
     check "the new credential is in the configuration, without the password" sh -c "grep -q '^net_auth_credential = visitor:.argon2id' $DC && ! grep -q 'another secret' $DC"
     sed -i "s|^net_web_root = .*|net_login_change = 0\n&|" $DC
-    pkill -HUP -x snapraidd; sleep 3
+    pkill -HUP -x diskflux; sleep 3
     is "with net_login_change = 0 a change is refused" "$(login 'visitor:another secret' '{"user":"showcase","password":"secret again","current":"another secret"}')" 403
     sleep 2
     is "and the login stays" "$(curl -s -o /dev/null -w '%{http_code}' -u 'visitor:another secret' $U/state)" 200
@@ -370,7 +370,7 @@ else
     skip "the login changed from the pages" "this daemon has no net_login_change"
 fi
 cp $DC.showcase-test $DC; rm -f $DC.showcase-test
-pkill -HUP -x snapraidd; sleep 3
+pkill -HUP -x diskflux; sleep 3
 is "without the credential the lab is open again" "$(curl -s -o /dev/null -w '%{http_code}' $U/state)" 200
 
 # ---------------------------------------------------------------------------

@@ -4,7 +4,7 @@
 #
 # Updates the demo to a release of SnapRAID Daemon and to the newest lab, then
 # starts it again. The demo runs in Docker: it is updated by rebuilding its image
-# from the sources, not by the installer or snapraidd-upgrade.
+# from the sources, not by the installer or diskflux-upgrade.
 #
 #   sudo /opt/demo/snapraid-lab/demo/upgrade.sh            the latest release
 #   sudo /opt/demo/snapraid-lab/demo/upgrade.sh 2.2.s9     that release

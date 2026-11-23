@@ -37,7 +37,7 @@ IMG=$W/img
 U=http://127.0.0.1:7627/snapraid
 AUTH="admin:test"
 LOCK=/var/snapraid/snapraid.content.lock
-DAEMON=/usr/bin/snapraidd
+DAEMON=/usr/bin/diskflux
 PASS=0; FAILS=0
 export DEBIAN_FRONTEND=noninteractive
 
@@ -94,8 +94,8 @@ same() {
 }
 
 stop_daemon() {
-    pkill -x snapraidd 2>/dev/null
-    for _ in $(seq 1 50); do pgrep -x snapraidd >/dev/null || break; sleep 0.2; done
+    pkill -x diskflux 2>/dev/null
+    for _ in $(seq 1 50); do pgrep -x diskflux >/dev/null || break; sleep 0.2; done
 }
 
 teardown() {
@@ -106,10 +106,10 @@ teardown() {
         [ -f "$f" ] && for l in $(losetup -j "$f" -O NAME -n); do losetup -d "$l" 2>/dev/null; done
     done
     # one package at a time: apt refuses the whole list when one name is unknown to it
-    for p in snapraid-daemon-storage snapraid-daemon snapraid; do dpkg --purge "$p" >/dev/null 2>&1; done
-    rm -rf "$IMG" /etc/snapraid.conf* /etc/snapraidd.conf* /etc/snapraidd.d /etc/snapraid /var/snapraid /var/log/snapraid \
+    for p in diskflux snapraid-daemon snapraid; do dpkg --purge "$p" >/dev/null 2>&1; done
+    rm -rf "$IMG" /etc/snapraid.conf* /etc/diskflux.conf* /etc/snapraidd.conf* /etc/diskflux.d /etc/snapraid /var/snapraid /var/log/snapraid \
         /etc/cron.d/snapraid /usr/local/bin/snapraid /usr/local/bin/snapraid-nightly.sh /usr/local/etc/snapraid.conf \
-        /etc/fstab.snapraidd.bak /mnt/disk? /mnt/parity? /mnt/storage
+        /etc/fstab.diskflux.bak /mnt/disk? /mnt/parity? /mnt/storage
     : > /etc/fstab
 }
 
@@ -261,7 +261,7 @@ check "it shows the differences" grep -q "1 added" "$W/install.log"
 check "it tells how to go on, with a sync asked for or made by hand" grep -q "SNAPRAID_SYNC=1" "$W/install.log"
 snap pending2
 check "nothing was changed" same pending pending2 conf parity content data tree mounts
-check "nothing was installed" not installed snapraid-daemon-storage
+check "nothing was installed" not installed diskflux
 check "the engine is still the old one" test "$(engine_version)" = "$OLD"
 rm /mnt/disk1/photos/new.jpg; mv "$W/img9.jpg" /mnt/disk2/photos/img9.jpg
 
@@ -273,7 +273,7 @@ check "a sync of the owner running: it stops" test $RC = 1
 check "it says that SnapRAID is in use" grep -q "already in use" "$W/install.log"
 snap locked
 check "nothing was changed" same before locked conf parity content data mounts
-check "nothing was installed" not installed snapraid-daemon-storage
+check "nothing was installed" not installed diskflux
 
 umount /mnt/storage; umount /mnt/disk3
 install SNAPRAID_SYNC=1; RC=$?
@@ -282,7 +282,7 @@ check "a disk not mounted, even with a sync asked for: it stops" test $RC = 1
 check "SnapRAID refused to sync the empty folder" grep -q "force-empty" "$W/install.log"
 snap unmounted
 check "nothing was changed" same before unmounted conf parity content data mounts
-check "nothing was installed" not installed snapraid-daemon-storage
+check "nothing was installed" not installed diskflux
 
 # ---------------------------------------------------------------------------
 section "installation on the synced array"
@@ -296,7 +296,7 @@ check "without a sync of the parity" grep -q "the parity is not touched" "$W/ins
 check "all the three content files are in the new format" test "$(format_of /var/snapraid/snapraid.content)$(format_of /mnt/disk1/.snapraid.content)$(format_of /mnt/disk2/.snapraid.content)" = SNAPCNT3SNAPCNT3SNAPCNT3
 check "the engine is SnapRAID 15" dpkg --compare-versions "$(engine_version)" ge 15.0
 check "the upgrade of the engine is told" grep -q "engine was upgraded from $OLD" "$W/install.log"
-check "the daemon is installed" installed snapraid-daemon-storage
+check "the daemon is installed" installed diskflux
 snap installed
 check "snapraid.conf, fstab, the cron job and the own backup are as they were" same before installed conf
 check "the parity files are as they were" same before installed parity
@@ -305,11 +305,11 @@ check "the disks and the pool are mounted as they were" same before installed mo
 check "'snapraid status' of the new engine finds no error" sh -c "snapraid status | grep -q 'No error detected'"
 check "'snapraid diff' finds nothing to sync" snapraid diff
 check "the old engine still reads the array: going back is possible" "$OLDBIN" status
-check "the daemon has no maintenance schedule" grep -qx "maintenance_schedule =" /etc/snapraidd.conf
-check "the daemon does not spin down the disks" grep -qx "spindown_idle_minutes = 0" /etc/snapraidd.conf
+check "the daemon has no maintenance schedule" grep -qx "maintenance_schedule =" /etc/diskflux.conf
+check "the daemon does not spin down the disks" grep -qx "spindown_idle_minutes = 0" /etc/diskflux.conf
 check "the installer says that the daemon only watches" grep -q "only watches the array" "$W/install.log"
 check "the cron job of the owner is found and named" grep -q "/etc/cron.d/snapraid" "$W/install.log"
-check "the web UI is protected by the password" grep -q "^net_auth_credential = admin:" /etc/snapraidd.conf
+check "the web UI is protected by the password" grep -q "^net_auth_credential = admin:" /etc/diskflux.conf
 
 # ---------------------------------------------------------------------------
 section "the daemon next to the array"
@@ -393,7 +393,7 @@ cp /etc/snapraid.conf "$W/conf.before"
 jq -n --arg t "$(cat /etc/snapraid.conf)"$'\n' '{text: $t}' > "$W/put.json"
 check "saving the configuration as it is" test "$(post /v1/storage/engine_conf @"$W/put.json" PUT | jq -r .success)" = true
 check "leaves it identical" cmp -s "$W/conf.before" /etc/snapraid.conf
-check "the previous one is kept as .snapraidd.bak" cmp -s "$W/conf.before" /etc/snapraid.conf.snapraidd.bak
+check "the previous one is kept as .diskflux.bak" cmp -s "$W/conf.before" /etc/snapraid.conf.diskflux.bak
 check "the own .bak of the owner is not overwritten" test "$(cat /etc/snapraid.conf.bak)" = "# my own backup, 2021"
 
 cp /etc/fstab "$W/fstab.before"
@@ -407,21 +407,21 @@ rm -f /mnt/storage/photos/open.tmp
 check "the pool has the new policy" test "$(getfattr -n user.mergerfs.category.create --only-values /mnt/storage/.mergerfs)" = epmfs
 check "only the line of the pool changed in fstab" test "$(diff "$W/fstab.before" /etc/fstab | grep -c '^[<>]')" = 2
 check "comments and the other lines are as written" test "$(grep -v ' /mnt/storage ' /etc/fstab)" = "$(grep -v ' /mnt/storage ' "$W/fstab.before")"
-check "the previous fstab is kept as .snapraidd.bak" cmp -s "$W/fstab.before" /etc/fstab.snapraidd.bak
+check "the previous fstab is kept as .diskflux.bak" cmp -s "$W/fstab.before" /etc/fstab.diskflux.bak
 
 # ---------------------------------------------------------------------------
 section "running the installer again, and removing the package"
 # ---------------------------------------------------------------------------
 stop_daemon
-cp /etc/snapraidd.conf "$W/daemon.conf"
+cp /etc/diskflux.conf "$W/daemon.conf"
 install; RC=$?
 check "a second run completes" test $RC = 0
-check "the configuration of the daemon is kept" cmp -s "$W/daemon.conf" /etc/snapraidd.conf
-check "and it says so" grep -q "existing configuration in /etc/snapraidd.conf was kept" "$W/install.log"
+check "the configuration of the daemon is kept" cmp -s "$W/daemon.conf" /etc/diskflux.conf
+check "and it says so" grep -q "existing configuration in /etc/diskflux.conf was kept" "$W/install.log"
 
 snap remove
-apt-get remove -y -q snapraid-daemon-storage >/dev/null 2>&1
-check "the package is removed" not installed snapraid-daemon-storage
+apt-get remove -y -q diskflux >/dev/null 2>&1
+check "the package is removed" not installed diskflux
 snap removed
 check "the array, the files written by hand and the pool are as they were" same remove removed conf parity content data tree mounts
 echo n4 > /mnt/disk1/photos/n4.jpg
@@ -437,8 +437,8 @@ echo new > /mnt/disk1/photos/new.jpg
 install SNAPRAID_SYNC=1 SNAPRAIDD_AUTO=1; RC=$?
 check "changes not synced, with SNAPRAID_SYNC=1: it syncs and installs" test $RC = 0
 check "the array is synced" snapraid diff
-check "with SNAPRAIDD_AUTO=1 the daemon keeps its nightly maintenance" grep -qx "maintenance_schedule = 02:00" /etc/snapraidd.conf
-check "and its spin down" grep -qx "spindown_idle_minutes = 15" /etc/snapraidd.conf
+check "with SNAPRAIDD_AUTO=1 the daemon keeps its nightly maintenance" grep -qx "maintenance_schedule = 02:00" /etc/diskflux.conf
+check "and its spin down" grep -qx "spindown_idle_minutes = 15" /etc/diskflux.conf
 
 teardown
 check "an array made with an engine built from the sources is synced" machine sources
@@ -448,7 +448,7 @@ install; RC=$?
 check "an engine built from the sources in /usr/local: it stops" test $RC = 1
 check "it names the program to remove" grep -q "rm /usr/local/bin/snapraid" "$W/install.log"
 check "and the configuration to move" grep -q "mv /usr/local/etc/snapraid.conf /etc/snapraid.conf" "$W/install.log"
-check "nothing was installed" not installed snapraid-daemon-storage
+check "nothing was installed" not installed diskflux
 rm /usr/local/bin/snapraid; mv /usr/local/etc/snapraid.conf /etc/snapraid.conf; hash -r
 install; RC=$?
 check "after doing what it says, the installer completes" test $RC = 0
@@ -460,7 +460,7 @@ check "'snapraid status' finds no error" sh -c "snapraid status | grep -q 'No er
 teardown
 install; RC=$?
 check "a machine with no array: the installer completes" test $RC = 0
-check "the daemon has its usual schedule" grep -qx "maintenance_schedule = 02:00" /etc/snapraidd.conf
+check "the daemon has its usual schedule" grep -qx "maintenance_schedule = 02:00" /etc/diskflux.conf
 check "and nothing is said about an existing array" not grep -q "already in use" "$W/install.log"
 
 teardown
@@ -478,7 +478,7 @@ official_state > "$W/official2"
 check "SnapRAID Daemon installed: it stops" test $RC = 1
 check "it says that DiskFlux never replaces it" grep -q "DiskFlux never replaces" "$W/install.log"
 check "its package, its files and its configuration are as they were" cmp "$W/official1" "$W/official2"
-check "nothing was installed" not installed snapraid-daemon-storage
+check "nothing was installed" not installed diskflux
 
 teardown
 echo

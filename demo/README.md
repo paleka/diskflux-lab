@@ -32,7 +32,7 @@ front of it to reach it from the Internet.
 ## Updating it
 
 The demo runs in Docker, so it is not updated with the installer or with
-`snapraidd-upgrade`: those install the daemon on the machine itself, where it
+`diskflux-upgrade`: those install the daemon on the machine itself, where it
 would fight with the container for port 7627 (the installer refuses to). Instead:
 
 ```sh

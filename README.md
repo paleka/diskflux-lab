@@ -263,7 +263,7 @@ and the layout tests of the selftest):
 
 | What | Where | Run |
 |---|---|---|
-| Daemon selftest: validation of everything coming from the network, mount table parsing, fstab editing, pool helpers | fork, `daemon/storage.c` (`storage_selftest`) | `make check`, or `snapraidd test` |
+| Daemon selftest: validation of everything coming from the network, mount table parsing, fstab editing, pool helpers | fork, `daemon/storage.c` (`storage_selftest`) | `make check`, or `diskflux test` |
 | Logic of the Storage page: configuration parsing, disk states, guided setup rules, advisor | fork, `test/ui/storage.test.mjs` | `make check`, or `node --test test/ui/storage.test.mjs` |
 | Storage API end to end, on the emulated disks: format, mount, fstab, pool, browse, duplicates, balance, recovery of a replaced disk, permissions | here, `tests/api-test.sh` | see below |
 
@@ -383,7 +383,7 @@ most of them waiting for the daemon to look for changes by itself):
     docker compose -f docker-compose.extras.yml down -v
 
 The lab has no UPS, no other computer, no mail and no package of the daemon, so the test writes
-small stand-ins of `upsc`, `mount.cifs`, `mail` and `snapraidd-upgrade` for its time, and removes them at the end. It covers the blank disk `s2`
+small stand-ins of `upsc`, `mount.cifs`, `mail` and `diskflux-upgrade` for its time, and removes them at the end. It covers the blank disk `s2`
 written and read back whole, left blank, with disks of an array refused; a sync and a scrub in
 the record, silent damage written into a protected file found by a scrub and recorded with its
 errors, the repair recorded with what it recovered, and every run recorded once; a power cut
@@ -429,8 +429,8 @@ this part).
   inventory of the Storage page gets model, serial, bus, rotation and "removable" of the disk the
   loop device stands for.
 - Every array has its SnapRAID configuration (`/lab/etc/snapraid.conf`, `/lab/etc/snapraid/media.conf`,
-  `/lab/etc/snapraid/flash.conf`) and its daemon options (`/lab/etc/snapraidd.conf`,
-  `/lab/etc/snapraidd.d/media.conf`, `/lab/etc/snapraidd.d/flash.conf`).
+  `/lab/etc/snapraid/flash.conf`) and its daemon options (`/lab/etc/diskflux.conf`,
+  `/lab/etc/diskflux.d/media.conf`, `/lab/etc/diskflux.d/flash.conf`).
 - `LAB_POOLS: "1"` makes a mergerfs pool over the data disks of every array, and `/mnt/scratch`.
 - `LAB_SHOWCASE: "1"` adds the less common options to the configurations (the table above), mounts
   the disks from `/etc/fstab` by UUID, and gives every pool its own placement policy. Without it
@@ -455,14 +455,14 @@ the daemon runs with `-N` (no cache): edit the HTML/CSS/JS and reload the browse
 Quiet, the default of new installations; switch with `LAB_UI: "commander"` or `LAB_UI: "brutale"`
 in `docker-compose.yml`. Where the folders are not mounted, the packed theme of the image is used.
 
-The showcase lab starts with 60 days of made-up space samples (`snapraidd-space.log`), so the
+The showcase lab starts with 60 days of made-up space samples (`diskflux-space.log`), so the
 forecast of Home ("full in about…") shows from the first minute. A real machine takes one sample a
 day and shows a forecast after a week.
 
 Changes to the C sources of the daemon need `docker compose up --build`.
 
 REST API: `http://localhost:7627/snapraid/v1/{state,array,disks,tasks,activity,system,storage}`,
-`/snapraid/v2/config`, Prometheus at `/metrics`. Full spec in `snapraidd.yaml` of the daemon.
+`/snapraid/v2/config`, Prometheus at `/metrics`. Full spec in `diskflux.yaml` of the daemon.
 
 ## Making things happen
 
@@ -497,7 +497,7 @@ SMART changes show up at the next probe (every minute).
 | `docker-compose.tiers.yml` | the showcase lab, running `tests/tiers-test.sh` |
 | `docker-compose.extras.yml` | the showcase lab, running `tests/extras-test.sh` |
 | `docker-compose.existing.yml` | no lab: a machine already using SnapRAID from the shell, for `tests/existing-setup-test.sh` |
-| `entrypoint.sh` | creates and mounts the disks, writes the configs, starts `snapraidd` |
+| `entrypoint.sh` | creates and mounts the disks, writes the configs, starts `diskflux` |
 | `fake-smartctl`, `smartctl-launcher.c` | SMART emulation, self-tests included (SnapRAID only runs real binaries, hence the launcher) |
 | `fake-lsblk` | `lsblk` with the model, serial and bus of the emulated disks |
 | `hook.sh`, `notify.sh` | what the hook and the notifications of the daemon run in the showcase lab |

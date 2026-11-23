@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Robert Paleka
-# Builds an emulated disk array (one loop device per disk image) and starts snapraidd.
+# Builds an emulated disk array (one loop device per disk image) and starts diskflux.
 set -u
 export LAB_DIR=${LAB_DIR:-/lab}
 LAB=$LAB_DIR
@@ -378,7 +378,7 @@ CONF
 # The second array: its SnapRAID configuration, and its own daemon options in the arrays directory.
 has_media=0; for d in "${disks[@]}"; do [ "$d" = m1 ] && has_media=1; done
 if [ "$PRESET" = ready ] && [ $has_media = 1 ] && [ ! -f $LAB/etc/snapraid/media.conf ]; then
-    mkdir -p $LAB/etc/snapraid $LAB/etc/snapraidd.d
+    mkdir -p $LAB/etc/snapraid $LAB/etc/diskflux.d
     {
         echo "# SnapRAID lab, second array"
         if has q2; then
@@ -394,8 +394,8 @@ if [ "$PRESET" = ready ] && [ $has_media = 1 ] && [ ! -f $LAB/etc/snapraid/media
         [ "$SHOWCASE" = 1 ] && echo "nohidden"
         echo "autosave 1"
     } > $LAB/etc/snapraid/media.conf
-    cat > $LAB/etc/snapraidd.d/media.conf <<CONF
-# SnapRAID Daemon lab, options of the array 'media' (the ones of the machine are in snapraidd.conf)
+    cat > $LAB/etc/diskflux.d/media.conf <<CONF
+# SnapRAID Daemon lab, options of the array 'media' (the ones of the machine are in diskflux.conf)
 engine_conf = $LAB/etc/snapraid/media.conf
 maintenance_schedule = 03:00
 sync_threshold_deletes = 50
@@ -410,13 +410,13 @@ notify_differences = 1
 CONF
     if [ "$SHOWCASE" = 1 ]; then
         # a schedule of two days, and the parity disks left spinning longer than the data disks
-        sed -i 's|^maintenance_schedule = .*|maintenance_schedule = Wed 03:00, Sat 03:00|; s|^spindown_idle_minutes = .*|spindown_idle_minutes = 15, 45|' $LAB/etc/snapraidd.d/media.conf
-        showcase_options >> $LAB/etc/snapraidd.d/media.conf
+        sed -i 's|^maintenance_schedule = .*|maintenance_schedule = Wed 03:00, Sat 03:00|; s|^spindown_idle_minutes = .*|spindown_idle_minutes = 15, 45|' $LAB/etc/diskflux.d/media.conf
+        showcase_options >> $LAB/etc/diskflux.d/media.conf
     fi
 fi
 # The third array, on flash disks.
 if [ "$PRESET" = ready ] && has f1 && [ ! -f $LAB/etc/snapraid/flash.conf ]; then
-    mkdir -p $LAB/etc/snapraid $LAB/etc/snapraidd.d
+    mkdir -p $LAB/etc/snapraid $LAB/etc/diskflux.d
     snap=0; for d in "${disks[@]}"; do case $d in f*) [ "$(fs_of "$d")" = btrfs ] && snap=1 ;; esac; done
     {
         echo "# SnapRAID lab, third array: flash disks"
@@ -433,8 +433,8 @@ if [ "$PRESET" = ready ] && has f1 && [ ! -f $LAB/etc/snapraid/flash.conf ]; the
             echo "snapshot"
         fi
     } > $LAB/etc/snapraid/flash.conf
-    cat > $LAB/etc/snapraidd.d/flash.conf <<CONF
-# SnapRAID Daemon lab, options of the array 'flash' (the ones of the machine are in snapraidd.conf)
+    cat > $LAB/etc/diskflux.d/flash.conf <<CONF
+# SnapRAID Daemon lab, options of the array 'flash' (the ones of the machine are in diskflux.conf)
 engine_conf = $LAB/etc/snapraid/flash.conf
 # twice a day: these disks change often
 maintenance_schedule = 01:00, 13:00
@@ -451,11 +451,11 @@ spindown_idle_minutes = 0
 notify_result_level = warning
 notify_differences = 1
 CONF
-    [ "$SHOWCASE" = 1 ] && showcase_options >> $LAB/etc/snapraidd.d/flash.conf
+    [ "$SHOWCASE" = 1 ] && showcase_options >> $LAB/etc/diskflux.d/flash.conf
 fi
-if [ ! -f $LAB/etc/snapraidd.conf ]; then
-    cat > $LAB/etc/snapraidd.conf <<CONF
-# SnapRAID Daemon lab configuration (see snapraidd.conf.example for every option)
+if [ ! -f $LAB/etc/diskflux.conf ]; then
+    cat > $LAB/etc/diskflux.conf <<CONF
+# SnapRAID Daemon lab configuration (see diskflux.conf.example for every option)
 sys_engine = /usr/bin/snapraid
 sys_log_directory = $LAB/log
 sys_log_retention_days = 120
@@ -486,7 +486,7 @@ notify_differences = 1
 CONF
     if [ "$SHOWCASE" = 1 ]; then
         # every result is notified, not only the bad ones; two schedules; parity disks spun down later
-        sed -i 's|^notify_result_level = .*|notify_result_level = info|; s|^maintenance_schedule = .*|maintenance_schedule = 02:00, Sun 05:00|; s|^spindown_idle_minutes = .*|spindown_idle_minutes = 15, 30|' $LAB/etc/snapraidd.conf
+        sed -i 's|^notify_result_level = .*|notify_result_level = info|; s|^maintenance_schedule = .*|maintenance_schedule = 02:00, Sun 05:00|; s|^spindown_idle_minutes = .*|spindown_idle_minutes = 15, 30|' $LAB/etc/diskflux.conf
         {
             showcase_options
             echo "# arrays that share no disk run together"
@@ -495,15 +495,15 @@ CONF
             echo "sys_log_compression = 1"
             echo "# changes of these attributes are not reported"
             echo "sys_smartignore = * Spin_Up_Time Raw_Read_Error_Rate"
-        } >> $LAB/etc/snapraidd.conf
+        } >> $LAB/etc/diskflux.conf
     fi
 fi
 # The login, when asked: without it the lab is open to the private addresses of net_acl.
-sed -i '/^net_auth_credential/d' $LAB/etc/snapraidd.conf
+sed -i '/^net_auth_credential/d' $LAB/etc/diskflux.conf
 if [ -n "$AUTH" ]; then
-    cred=$(snapraidd -g "$AUTH" 2>/dev/null | grep -oE '[^ =]+:\$argon2id\$.*' | head -1)
+    cred=$(diskflux -g "$AUTH" 2>/dev/null | grep -oE '[^ =]+:\$argon2id\$.*' | head -1)
     if [ -n "$cred" ]; then
-        sed -i "s|^net_web_root = .*|net_auth_credential = $cred\n&|" $LAB/etc/snapraidd.conf
+        sed -i "s|^net_web_root = .*|net_auth_credential = $cred\n&|" $LAB/etc/diskflux.conf
         log "login enabled for the user '${AUTH%%:*}'"
     else
         log "WARNING: cannot make the credential of LAB_AUTH, the login stays off"
@@ -511,22 +511,22 @@ if [ -n "$AUTH" ]; then
 fi
 # The login stays the one above, when asked. A daemon older than the option refuses a
 # configuration that has it, so it is written only for a daemon that knows it.
-sed -i '/^net_login_change/d' $LAB/etc/snapraidd.conf
+sed -i '/^net_login_change/d' $LAB/etc/diskflux.conf
 if [ "$LOGIN_FIXED" = 1 ]; then
-    if grep -aq net_login_change "$(command -v snapraidd)"; then
-        sed -i "s|^net_web_root = .*|net_login_change = 0\n&|" $LAB/etc/snapraidd.conf
+    if grep -aq net_login_change "$(command -v diskflux)"; then
+        sed -i "s|^net_web_root = .*|net_login_change = 0\n&|" $LAB/etc/diskflux.conf
         log "the login cannot be changed from the pages"
     else
         log "this daemon has no net_login_change: nothing to turn off"
     fi
 fi
-grep -q '^net_acl' $LAB/etc/snapraidd.conf || sed -i 's|^net_web_root = .*|net_acl = +127.0.0.1,+10.0.0.0/8,+172.16.0.0/12,+192.168.0.0/16\n&|' $LAB/etc/snapraidd.conf
-grep -q '^net_storage_admin' $LAB/etc/snapraidd.conf || sed -i 's|^net_web_root = .*|net_storage_admin = 1\n&|' $LAB/etc/snapraidd.conf
+grep -q '^net_acl' $LAB/etc/diskflux.conf || sed -i 's|^net_web_root = .*|net_acl = +127.0.0.1,+10.0.0.0/8,+172.16.0.0/12,+192.168.0.0/16\n&|' $LAB/etc/diskflux.conf
+grep -q '^net_storage_admin' $LAB/etc/diskflux.conf || sed -i 's|^net_web_root = .*|net_storage_admin = 1\n&|' $LAB/etc/diskflux.conf
 # the live sources when they are mounted, otherwise the packed theme of the image
 if [ -d /ui/$UI ]; then
-    sed -i "s|^net_web_root = .*|net_web_root = /ui/$UI|" $LAB/etc/snapraidd.conf
+    sed -i "s|^net_web_root = .*|net_web_root = /ui/$UI|" $LAB/etc/diskflux.conf
 else
-    sed -i "s|^net_web_root = .*|net_web_root = $UI.zip|" $LAB/etc/snapraidd.conf
+    sed -i "s|^net_web_root = .*|net_web_root = $UI.zip|" $LAB/etc/diskflux.conf
 fi
 
 # On a large disk "lab seed" writes some real files and takes the rest of the room with "lab space".
@@ -580,7 +580,7 @@ fi
 # show from the first minute. They are made up from the space used now, growing about 0.4% of
 # each array a day; a real machine gathers its own, one a day.
 seed_space() {
-    local f=$LAB/etc/snapraidd-space.log
+    local f=$LAB/etc/diskflux-space.log
     [ -f "$f" ] && return
     local today=$(( ($(date +%s) + $(date +%z | awk '{s=substr($0,1,1)=="-"?-1:1; print s*(substr($0,2,2)*3600+substr($0,4,2)*60)}')) / 86400 ))
     echo "# Space of the arrays of the SnapRAID Daemon, one line a day: day (days since 1970), array, used bytes, total bytes of the data disks. Made up by the lab for the days before it started." > "$f"
@@ -608,11 +608,11 @@ seed_space() {
 }
 [ "$SHOWCASE" = 1 ] && seed_space
 
-log "starting snapraidd, UI '$UI' on http://localhost:7627"
+log "starting diskflux, UI '$UI' on http://localhost:7627"
 # -N: serve the UI files straight from /ui/<name> without caching, so edits show up on reload
 # the lab never suspends or powers off the machine when idle: the daemon only logs it
 export SNAPRAIDD_HOST_DRYRUN=1
-snapraidd -f -N -c $LAB/etc/snapraidd.conf -C $LAB/etc/snapraid.conf -p /run/snapraidd.pid &
+diskflux -f -N -c $LAB/etc/diskflux.conf -C $LAB/etc/snapraid.conf -p /run/diskflux.pid &
 DAEMON_PID=$!
 if [ "${LAB_RUN_TESTS:-0}" = 1 ]; then
     # run the API tests against this lab, then stop with their result
@@ -627,7 +627,7 @@ if [ "${LAB_RUN_TESTS:-0}" = 1 ]; then
 fi
 wait $DAEMON_PID
 rc=$?
-log "snapraidd exited with $rc"
+log "diskflux exited with $rc"
 DAEMON_PID=
 trap - TERM INT
 ( release ) >/dev/null 2>&1

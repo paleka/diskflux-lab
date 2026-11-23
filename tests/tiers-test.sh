@@ -241,7 +241,7 @@ check "the copy is the same as the original" test "$(md5sum < $D/p1-2/snapraid.p
 check "the old parity was not touched" test "$(md5sum < $OLD)" = "$OLDSUM"
 check "the array now uses the new file" grep -qx "parity $D/p1-2/snapraid.parity" $LAB/etc/snapraid.conf
 check "the other level is as before" grep -qx "2-parity $D/p2/snapraid.2-parity" $LAB/etc/snapraid.conf
-check "the previous configuration is kept" test -f $LAB/etc/snapraid.conf.snapraidd.bak
+check "the previous configuration is kept" test -f $LAB/etc/snapraid.conf.diskflux.bak
 spost parity_move "{\"parity\":\"parity\",\"target\":\"$D/p1-2\"}";      expect "a second copy over the first is refused" 409 "already"
 # for the array the parity is on a changed disk: it's told that nothing was lost
 spost recover '{"disks":"","check":false,"accept":true,"force_uuid":false}'

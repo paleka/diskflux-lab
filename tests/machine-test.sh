@@ -105,16 +105,16 @@ post share_save '{"name":"bad name","path":"/mnt/storage/Movies"}';     expect "
 post share_save '{"name":"Movies","path":"/mnt/storage/Movies","smb":true,"writable":false,"guest":true,"recycle":true,"recycle_days":"7","comment":"Films at home"}'
 if [ -d /etc/samba ]; then
     expect "a share is saved" 202
-    check "its section is written" grep -q '^\[Movies\]' /etc/samba/snapraidd-shares.conf
-    check "read only for everybody" grep -q 'read only = yes' /etc/samba/snapraidd-shares.conf
-    check "with its recycle bin" grep -q 'vfs objects = recycle' /etc/samba/snapraidd-shares.conf
-    check "smb.conf includes the shares, last" test "$(grep -v '^\s*$' /etc/samba/smb.conf | tail -1)" = "include = /etc/samba/snapraidd-shares.conf"
-    check "a copy of smb.conf is kept" test -f /etc/samba/smb.conf.snapraidd.bak
+    check "its section is written" grep -q '^\[Movies\]' /etc/samba/diskflux-shares.conf
+    check "read only for everybody" grep -q 'read only = yes' /etc/samba/diskflux-shares.conf
+    check "with its recycle bin" grep -q 'vfs objects = recycle' /etc/samba/diskflux-shares.conf
+    check "smb.conf includes the shares, last" test "$(grep -v '^\s*$' /etc/samba/smb.conf | tail -1)" = "include = /etc/samba/diskflux-shares.conf"
+    check "a copy of smb.conf is kept" test -f /etc/samba/smb.conf.diskflux.bak
     if command -v testparm >/dev/null; then
         check "Samba accepts it" sh -c 'testparm -s 2>/dev/null | grep -q "^\[Movies\]"'
     fi
     post share_save '{"name":"Movies","path":"/mnt/storage/Movies","smb":true,"guest":true}'
-    check "saving again does not add the include twice" test "$(grep -c 'snapraidd-shares.conf' /etc/samba/smb.conf)" = 1
+    check "saving again does not add the include twice" test "$(grep -c 'diskflux-shares.conf' /etc/samba/smb.conf)" = 1
     check "the share is listed" test "$(host '.shares[] | select(.name=="Movies") | .guest')" = true
     if command -v smbpasswd >/dev/null; then
         post share_user_set '{"user":"anna","password":"12"}';             expect "a short password is refused" 400 "4 to 128"
@@ -123,7 +123,7 @@ if [ -d /etc/samba ]; then
         check "it's a system user without login" sh -c 'getent passwd anna | grep -q nologin'
         check "Samba knows it" test "$(curl -s $H/share_users | jq -r '.share_users | index("anna") != null')" = true
         post share_save '{"name":"Photos","path":"/mnt/storage/Photos","smb":true,"users":"anna","writable":true}'
-        check "a share only for anna" grep -q 'valid users = anna' /etc/samba/snapraidd-shares.conf
+        check "a share only for anna" grep -q 'valid users = anna' /etc/samba/diskflux-shares.conf
         post share_user_delete '{"user":"anna"}';                          expect "the share user is removed" 202
         post share_delete '{"name":"Photos"}'
     else
@@ -134,11 +134,11 @@ else
     skip "Samba configuration" "Samba not installed"
 fi
 post share_save '{"name":"Music","path":"/mnt/storage/Music","smb":false,"nfs":true,"nfs_hosts":"192.168.1.0/24,10.0.0.5"}'
-check "an NFS export is written, quoted, with an fsid for the pool" grep -qE '^"/mnt/storage/Music" 192.168.1.0/24\(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=[0-9]+,fsid=[0-9]+\) 10.0.0.5' /etc/exports.d/snapraidd.exports
+check "an NFS export is written, quoted, with an fsid for the pool" grep -qE '^"/mnt/storage/Music" 192.168.1.0/24\(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=[0-9]+,fsid=[0-9]+\) 10.0.0.5' /etc/exports.d/diskflux.exports
 post share_delete '{"name":"Music"}'
-refute "a removed share leaves the exports" grep -q Music /etc/exports.d/snapraidd.exports
+refute "a removed share leaves the exports" grep -q Music /etc/exports.d/diskflux.exports
 post share_delete '{"name":"Movies"}'
-refute "and Samba" grep -q '^\[Movies\]' /etc/samba/snapraidd-shares.conf
+refute "and Samba" grep -q '^\[Movies\]' /etc/samba/diskflux-shares.conf
 
 section "permissions"
 mkdir -p $D/x1/perm/sub && touch $D/x1/perm/sub/f && chmod 600 $D/x1/perm/sub/f
@@ -274,7 +274,7 @@ section "diagnostics"
 req GET $H/diagnostics
 expect "diagnostics are made" 200
 TXT=$(bj .text)
-check "named with the date" test "$(bj .filename | grep -cE '^snapraidd-diagnostics-[0-9]{8}-[0-9]{4}\.txt$')" = 1
+check "named with the date" test "$(bj .filename | grep -cE '^diskflux-diagnostics-[0-9]{8}-[0-9]{4}\.txt$')" = 1
 check "with the configurations" test "$(echo "$TXT" | grep -c '===== Daemon configuration')" = 1
 check "the commands of the notifications are removed" test "$(echo "$TXT" | grep -c 'notify_result = <removed>')" -ge 1
 check "no serial number of the disks" test "$(echo "$TXT" | grep -c 'LAB1000D1')" = 0
@@ -287,8 +287,8 @@ fi
 section "backup and restore of the settings"
 req GET $H/settings_backup
 expect "the settings are given" 200
-check "with the daemon configuration" test "$(bj '.files[].path' | grep -c "^$LAB/etc/snapraidd.conf$")" = 1
-check "and the settings of the machine" test "$(bj '.files[].path' | grep -c snapraidd-host.conf)" = 1
+check "with the daemon configuration" test "$(bj '.files[].path' | grep -c "^$LAB/etc/diskflux.conf$")" = 1
+check "and the settings of the machine" test "$(bj '.files[].path' | grep -c diskflux-host.conf)" = 1
 post restore '{"path":"/etc/passwd","text":"x"}';  expect "a file not of the settings is refused" 400 "not one of the settings"
 # a SnapRAID configuration goes through the checks of the Configuration page: here a disk of another array
 BAD=$(sed "s|^data d4 .*|data d4 $D/m1|" $LAB/etc/snapraid.conf | jq -Rs .)

@@ -143,7 +143,7 @@ BEFORE=$(runs .total 1)
 req POST $U/maintenance '{}'; tasks_wait
 check "a sync and a scrub are recorded" test "$(runs .total 1)" -ge $((BEFORE + 2))
 check "the newest is first" test "$(runs '.runs[0].command + " " + .runs[0].result + " " + .runs[1].command')" = "scrub ok sync"
-check "the record is a file next to the settings" grep -qP "\tdefault\tscrub\tok\t0\t" "$CONFDIR/snapraidd-runs.log"
+check "the record is a file next to the settings" grep -qP "\tdefault\tscrub\tok\t0\t" "$CONFDIR/diskflux-runs.log"
 check "the runs of another array are apart" test "$(curl -s "$H/runs?array=flash" | jq -r '[.runs[] | select(.array != "flash")] | length')" = 0
 check "an array without runs has none" test "$(curl -s "$H/runs?array=nosucharray" | jq -r .total)" = 0
 # silent damage: some bytes of a protected file change, its size and time stay
@@ -160,9 +160,9 @@ check "the fix is recorded with what it recovered" test "$(runs '.runs[0].comman
 check "the fixed errors are summed up" test "$(runs .errors_fixed 1)" -ge 1
 schedule '{"command":"scrub","args":["-p","bad"]}'; tasks_wait
 check "the scrub of what was damaged is clean" test "$(runs '.runs[0].command + " " + .runs[0].result')" = "scrub ok"
-LINES=$(grep -vc '^#' "$CONFDIR/snapraidd-runs.log")
+LINES=$(grep -vc '^#' "$CONFDIR/diskflux-runs.log")
 sleep 62
-check "a run is recorded once" test "$(grep -vc '^#' "$CONFDIR/snapraidd-runs.log")" = "$LINES"
+check "a run is recorded once" test "$(grep -vc '^#' "$CONFDIR/diskflux-runs.log")" = "$LINES"
 
 section "battery backup"
 online() { printf 'battery.charge: %s\nbattery.runtime: %s\nups.status: OL CHRG\n' "${1:-100}" "${2:-2400}" > $STAND/ups/state; }
@@ -250,15 +250,15 @@ post remote_save '{"name":"nas","kind":"smb","host":"lab","share":"photos","user
 post settings '{"remote.nas":"kind=smb\thost=lab\tshare=photos"}';                             expect "they have their own request" 400 "of its own"
 post remote_save '{"name":"nas","kind":"smb","host":"lab","share":"photos","user":"anna","password":"wrong"}'; expect "a folder is saved" 202
 check "it is listed without the password" test "$(host '.remotes[0] | .name + " " + .kind + " " + .host + " " + .share + " " + .user + " " + (.password | tostring) + " " + (.mounted | tostring)')" = "nas smb lab photos anna true false"
-refute "the password is not in the settings" grep -q wrong "$CONFDIR/snapraidd-host.conf"
-check "it is in a file only root reads" test "$(stat -c %a "$CONFDIR/snapraidd-remote-nas.cred")" = 600
+refute "the password is not in the settings" grep -q wrong "$CONFDIR/diskflux-host.conf"
+check "it is in a file only root reads" test "$(stat -c %a "$CONFDIR/diskflux-remote-nas.cred")" = 600
 post remote_test '{"name":"nas"}';                   expect "a wrong password is told in plain words" 502 "refused the name or the password"
 post remote_save '{"name":"nas","kind":"smb","host":"lab","share":"photos","user":"anna","password":"secret"}'
 post remote_test '{"name":"nas"}';                   expect "with the right one it is read" 202
 check "its folders are listed" test "$(echo "$BODY" | jq -r '.folders | sort | join(",")')" = "2024,2025"
 check "with the count of what is inside" test "$(echo "$BODY" | jq -r .entries)" = 3
 refute "after the look it is not left mounted" mountpoint -q /mnt/remote/nas
-check "it was asked read-only and without programs" grep -q "^//lab/photos /mnt/remote/nas ro,nosuid,nodev,noexec,.*credentials=$CONFDIR/snapraidd-remote-nas.cred" $STAND/smb/calls.log
+check "it was asked read-only and without programs" grep -q "^//lab/photos /mnt/remote/nas ro,nosuid,nodev,noexec,.*credentials=$CONFDIR/diskflux-remote-nas.cred" $STAND/smb/calls.log
 post remote_save '{"name":"nas","kind":"smb","host":"lab","share":"photos","user":"anna"}';    expect "saved again without a password it keeps the one it has" 202
 post remote_test '{"name":"nas"}';                   expect "and still reads" 202
 post remote_save '{"name":"gone","kind":"smb","host":"lab","share":"nosuchshare"}'
@@ -289,10 +289,10 @@ check "the files copied before are kept" test "$(find $POOL/FromNas -type f | wc
 mv $STAND/smb/photos.off $STAND/smb/photos
 post backup_delete '{"name":"nas-photos"}'; post backup_delete '{"name":"nas-sub"}'
 post remote_delete '{"name":"nas"}';                 expect "without backups it is deleted" 202
-refute "its password too" test -e "$CONFDIR/snapraidd-remote-nas.cred"
+refute "its password too" test -e "$CONFDIR/diskflux-remote-nas.cred"
 check "none is left" test "$(host '.remotes | length')" = 0
 post remote_save '{"name":"box","kind":"nfs","host":"lab","share":"/export/data"}';            expect "an NFS folder is saved" 202
-refute "it has no password file" test -e "$CONFDIR/snapraidd-remote-box.cred"
+refute "it has no password file" test -e "$CONFDIR/diskflux-remote-box.cred"
 post remote_delete '{"name":"box"}'
 rm -rf $POOL/FromNas $POOL/FromNas2025
 
@@ -305,7 +305,7 @@ post alerts_save '{"channels":"kind=pigeon\turl=https://x.example/a"}';         
 post alerts_save '{"channels":"kind=email\tto=anna@lab\nkind=email\tto=bob@lab\nkind=ntfy\turl=https://ntfy.lab/topic-1\nkind=discord\turl=https://discord.lab/api/webhooks/1/abc\nkind=telegram\ttoken=123:abc_DEF\tchat=-100200"}'
 expect "five channels are saved" 202
 CMD=$(echo "$BODY" | jq -r .command)
-SCRIPT=$CONFDIR/snapraidd-alerts.sh
+SCRIPT=$CONFDIR/diskflux-alerts.sh
 check "the answer is the command for the reports" test "$CMD" = "$SCRIPT \"%s\" \"%n\" \"%t\""
 check "the script is for root only" test "$(stat -c %a "$SCRIPT")" = 700
 check "it is a valid script" sh -n "$SCRIPT"
@@ -374,14 +374,14 @@ SP=$(curl -s $H/space)
 check "every array of the lab is measured" test "$(echo "$SP" | jq -r '.arrays | length')" -ge 3
 check "used and total are sizes of the data disks" test "$(echo "$SP" | jq -r '[.arrays[] | select(.total_bytes > 0 and .used_bytes <= .total_bytes)] | length')" = "$(echo "$SP" | jq -r '.arrays | length')"
 check "all of them are summed up" test "$(echo "$SP" | jq -r '.all.total_bytes == ([.arrays[].total_bytes] | add)')" = true
-check "the samples are a file next to the settings" grep -qP "^\d+\tdefault\t\d+\t\d+$" "$CONFDIR/snapraidd-space.log"
+check "the samples are a file next to the settings" grep -qP "^\d+\tdefault\t\d+\t\d+$" "$CONFDIR/diskflux-space.log"
 check "the made-up days of the showcase give a forecast" test "$(echo "$SP" | jq -r '.all.forecast')" = true
 check "growing, it says when it is full" test "$(echo "$SP" | jq -r '(.all.growth_bytes_per_day > 0) and (.all.days_to_full > 0)')" = true
 check "the days of an array are given, the oldest first" test "$(echo "$SP" | jq -r '.arrays[0].days | (length > 7) and (.[0].day < .[-1].day)')" = true
-LINES=$(grep -vc '^#' "$CONFDIR/snapraidd-space.log")
+LINES=$(grep -vc '^#' "$CONFDIR/diskflux-space.log")
 curl -s $H/space > /dev/null
-check "one sample a day: asking again adds nothing" test "$(grep -vc '^#' "$CONFDIR/snapraidd-space.log")" = "$LINES"
-check "today has one line for every array" test "$(awk -v d=$(curl -s "$H/space?days=1" | jq -r '[.arrays[].days[-1].day] | max') '$1 == d' "$CONFDIR/snapraidd-space.log" | wc -l)" -ge 3
+check "one sample a day: asking again adds nothing" test "$(grep -vc '^#' "$CONFDIR/diskflux-space.log")" = "$LINES"
+check "today has one line for every array" test "$(awk -v d=$(curl -s "$H/space?days=1" | jq -r '[.arrays[].days[-1].day] | max') '$1 == d' "$CONFDIR/diskflux-space.log" | wc -l)" -ge 3
 check "fewer days can be asked" test "$(curl -s "$H/space?days=3" | jq -r '[.arrays[].days | length] | max')" -le 4
 
 section "events of the machine"
@@ -394,14 +394,14 @@ check "a power cut says how charged the battery was" test "$(echo "$EV" | jq -r 
 check "the newest is first" test "$(echo "$EV" | jq -r '(.events[0].at >= .events[-1].at)')" = true
 check "the shutdown on battery is a dry run in the lab" grep -q "dry run" <<< "$(echo "$EV" | jq -r '[.events[] | select(.kind == "power_shutdown")][0].text')"
 check "a limit is kept" test "$(curl -s "$H/events?limit=2" | jq -r '.events | length')" = 2
-check "the events are a file next to the settings" grep -qP "^\d+\twarn\tpower_cut\tnut:labups\t" "$CONFDIR/snapraidd-events.log"
-refute "a folder size is not an event" grep -qP "\tusage\t" "$CONFDIR/snapraidd-events.log"
+check "the events are a file next to the settings" grep -qP "^\d+\twarn\tpower_cut\tnut:labups\t" "$CONFDIR/diskflux-events.log"
+refute "a folder size is not an event" grep -qP "\tusage\t" "$CONFDIR/diskflux-events.log"
 
 section "update of the daemon"
 # The lab runs the daemon built from the sources, not from the package: it can't update itself,
-# and says why. Then a stand-in of snapraidd-upgrade, keeping its status and log like the real
+# and says why. Then a stand-in of diskflux-upgrade, keeping its status and log like the real
 # one, shows how the web UI starts an update and follows it.
-UP_TOOL=/usr/sbin/snapraidd-upgrade
+UP_TOOL=/usr/sbin/diskflux-upgrade
 req GET "$H/upgrade"
 check "the installed version is told" test "$(echo "$BODY" | jq -r .daemon_version)" != null
 check "a copy not from the package can't update itself" test "$(echo "$BODY" | jq -r .available)" = false
@@ -411,7 +411,7 @@ post upgrade '{"version":"latest"}';      expect "an update is refused there" 40
 
 cat > $UP_TOOL <<'TOOL'
 #!/bin/sh
-# stand-in of snapraidd-upgrade for the lab tests
+# stand-in of diskflux-upgrade for the lab tests
 DIR=/etc; V=latest; BG=0
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -422,8 +422,8 @@ while [ $# -gt 0 ]; do
     esac
     shift
 done
-[ "$BG" = 1 ] && exec > "$DIR/snapraidd-upgrade.log" 2>&1
-st() { printf 'state=%s\nfrom=2.2.s1\nto=%s\nstarted=%s\nfinished=%s\npid=%s\nmessage=%s\n' "$1" "$V" "$T" "$2" $$ "$3" > "$DIR/snapraidd-upgrade.status"; }
+[ "$BG" = 1 ] && exec > "$DIR/diskflux-upgrade.log" 2>&1
+st() { printf 'state=%s\nfrom=2.2.s1\nto=%s\nstarted=%s\nfinished=%s\npid=%s\nmessage=%s\n' "$1" "$V" "$T" "$2" $$ "$3" > "$DIR/diskflux-upgrade.status"; }
 T=$(date +%s)
 echo "lab stand-in: installing $V"
 st running "" "Installing $V"
@@ -469,9 +469,9 @@ check "the status says so" test "$(curl -s $H/upgrade | jq -r .busy)" = true
 req POST $S/job_stop '{}'
 job_wait
 # a status left by a run that died
-printf 'state=running\nfrom=2.2.s1\nto=2.2.s99\nstarted=1\nfinished=\npid=999999\nmessage=Installing\n' > "$CONFDIR/snapraidd-upgrade.status"
+printf 'state=running\nfrom=2.2.s1\nto=2.2.s99\nstarted=1\nfinished=\npid=999999\nmessage=Installing\n' > "$CONFDIR/diskflux-upgrade.status"
 check "a run that died is told as failed" test "$(curl -s $H/upgrade | jq -r .last.state)" = failed
-rm -f $UP_TOOL "$CONFDIR/snapraidd-upgrade.status" "$CONFDIR/snapraidd-upgrade.log"
+rm -f $UP_TOOL "$CONFDIR/diskflux-upgrade.status" "$CONFDIR/diskflux-upgrade.log"
 check "without the command it can't update itself again" test "$(curl -s $H/upgrade | jq -r .available)" = false
 
 section "the lab as it was"
