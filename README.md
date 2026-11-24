@@ -336,6 +336,32 @@ array; a save from the web UI keeping comments and the owner's own `.bak`; a cha
 that does not remount it; and the package removed with everything as before. The packages are for
 x86-64, so on Apple silicon this image is built and run emulated, and it needs the network.
 
+Two more, `tests/coexist-test.sh` and then `tests/move-test.sh`, check DiskFlux next to SnapRAID
+Daemon, the official daemon of Andrea Mazzoleni. They build no lab either:
+
+    docker compose -f docker-compose.coexist.yml up --build --abort-on-container-exit --exit-code-from tests
+    docker compose -f docker-compose.coexist.yml down -v
+
+The first makes his machine: his package with his daemon on one array and one instance
+(`snapraidd@backup`, on port 7628, logging in `/var/log/snapraid/backup`, as his manual sets it up)
+on a second array. It installs DiskFlux with the one command, and checks every point he asked
+(A1 to A7) and every clash found in his source (C1 to C9) by name. It fails if one of them has no
+check. It covers:
+- his package, files, settings, processes, pid files, boot links, ports and logs compared before and after each step;
+- the names, the port, the package relations and the files of each package;
+- his settings and his instance imported, his file unchanged, his login opening DiskFlux;
+- both daemons writing in the same log directories, twelve times asked at once on both arrays, with no log holding two runs, and each reading the other's runs;
+- a sync of each refused by SnapRAID's lock while the other's runs, the array healthy for both;
+- a disk added and one renamed from DiskFlux, then seen by his daemon;
+- DiskFlux removed, then purged, with his daemon as it was; his package purged with DiskFlux as it was.
+
+The second moves a machine on `snapraid-daemon-storage`, the earlier package of DiskFlux (up to
+2.2.s14, built from that tag of the checkout: `git fetch --tags` first). It does it by the update
+command of that release, as the web UI runs it, and by the installer. Settings, arrays, shares and
+history are kept, and the web UI moves from 7627 to 7700. It also checks that an installation
+failing halfway puts everything back. With no systemd in the container, a stand-in `systemctl` and
+`systemd-run` (`tests/fake-systemd`) start and stop the daemons.
+
 A seventh one, `tests/machine-test.sh`, checks the settings of the machine behind the pages for
 everyday use, on the showcase lab (stop the lab first; about five minutes, two of them waiting for
 a USB disk "plugged in" again):
@@ -497,6 +523,7 @@ SMART changes show up at the next probe (every minute).
 | `docker-compose.tiers.yml` | the showcase lab, running `tests/tiers-test.sh` |
 | `docker-compose.extras.yml` | the showcase lab, running `tests/extras-test.sh` |
 | `docker-compose.existing.yml` | no lab: a machine already using SnapRAID from the shell, for `tests/existing-setup-test.sh` |
+| `docker-compose.coexist.yml` | no lab: a machine with SnapRAID Daemon, for `tests/coexist-test.sh`, then `tests/move-test.sh` |
 | `entrypoint.sh` | creates and mounts the disks, writes the configs, starts `diskflux` |
 | `fake-smartctl`, `smartctl-launcher.c` | SMART emulation, self-tests included (SnapRAID only runs real binaries, hence the launcher) |
 | `fake-lsblk` | `lsblk` with the model, serial and bus of the emulated disks |

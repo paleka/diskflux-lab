@@ -1,0 +1,8 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Robert Paleka
+# Runs the command detached, as a transient unit would
+echo "$*" >> /var/lab-move/systemd-run.log
+while [ $# -gt 0 ]; do case "$1" in --*) shift ;; *) break ;; esac; done
+setsid "$@" > /dev/null 2>&1 < /dev/null &
+exit 0

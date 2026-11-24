@@ -1,0 +1,27 @@
+# Tests DiskFlux next to SnapRAID Daemon, the official daemon of Andrea Mazzoleni, on the same
+# machine and arrays: every point he asked (A1 to A7) and every clash found in his source (C1 to
+# C9), by name (tests/coexist-test.sh). Then the move of a machine on snapraid-daemon-storage, the
+# earlier package of DiskFlux, to the diskflux package (tests/move-test.sh).
+#
+#     docker compose -f docker-compose.coexist.yml up --build --abort-on-container-exit --exit-code-from tests
+#     docker compose -f docker-compose.coexist.yml down -v
+#
+# It builds no lab and publishes no port. The packages are for x86-64: on another machine
+# (Apple silicon) the image is built and run emulated, which is slow. The container needs the
+# network: the installer takes the dependencies of the packages with apt. The move needs the tag
+# v2.2.s14 in the checkout of the daemon (git fetch --tags), to build the earlier package.
+name: snapraid-lab-coexist
+services:
+  tests:
+    platform: linux/amd64
+    build:
+      context: .
+      additional_contexts:
+        daemon: ${DAEMON_SRC:-../diskflux-daemon}
+      args:
+        LAB_PACKAGES: "1"
+    container_name: snapraid-lab-coexist
+    privileged: true
+    init: true
+    environment:
+      LAB_COEXIST: "1"

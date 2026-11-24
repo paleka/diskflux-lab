@@ -1,0 +1,26 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Robert Paleka
+# A systemctl for the lab, which has no systemd: records its calls and starts and stops the two
+# daemons of the move as systemd would
+echo "$*" >> /var/lab-move/systemctl.log
+QUIET=0; ARGS=""
+for a in "$@"; do case "$a" in --quiet|-q) QUIET=1 ;; --no-reload|--now|--no-block) ;; *) ARGS="$ARGS $a" ;; esac; done
+set -- $ARGS
+cmd=$1; shift
+pidof_unit() { case "$1" in snapraidd.service) cat /run/snapraidd.pid 2>/dev/null ;; diskflux.service) cat /run/diskflux.pid 2>/dev/null ;; esac; }
+alive() { p=$(pidof_unit "$1"); [ -n "$p" ] && kill -0 "$p" 2>/dev/null; }
+bin() { case "$1" in snapraidd.service) echo /usr/bin/snapraidd ;; diskflux.service) echo /usr/bin/diskflux ;; esac; }
+stop1() { p=$(pidof_unit "$1"); [ -n "$p" ] && kill "$p" 2>/dev/null; for i in 1 2 3 4 5 6 7 8 9 10; do alive "$1" || break; sleep 0.5; done; return 0; }
+start1() { alive "$1" && return 0; b=$(bin "$1"); [ -x "$b" ] || return 5; $b; sleep 1; }
+case "$cmd" in
+is-active) alive "$1" ;;
+stop) for u in "$@"; do stop1 "$u"; done ;;
+start) for u in "$@"; do start1 "$u" || exit 5; done ;;
+restart) for u in "$@"; do stop1 "$u"; start1 "$u"; done ;;
+try-restart) for u in "$@"; do if alive "$u"; then stop1 "$u"; start1 "$u"; fi; done ;;
+enable) for u in "$@"; do case "$u" in *@*|*'*'*) ;; *) mkdir -p /etc/systemd/system/multi-user.target.wants; ln -sf "/usr/lib/systemd/system/$u" "/etc/systemd/system/multi-user.target.wants/$u" ;; esac; done ;;
+disable) for u in "$@"; do rm -f "/etc/systemd/system/multi-user.target.wants/$u"; done ;;
+daemon-reload|show) ;;
+esac
+exit 0

@@ -36,14 +36,24 @@ RUN cd /src/diskflux \
 # Storage page. A failure stops the build.
 RUN cd /build-daemon && make check
 
-# The package of the daemon and its installer, for the test of an installation on a machine
-# already using SnapRAID (docker-compose.existing.yml). Built only when asked: the packages
-# are for x86-64 only. The version comes from the tags of the checkout.
+# The package of the daemon and its installer, for the tests of an installation on a machine
+# already using SnapRAID (docker-compose.existing.yml) and next to SnapRAID Daemon
+# (docker-compose.coexist.yml). Built only when asked: the packages are for x86-64 only. The
+# version comes from the tags of the checkout. Also the transition package of the release
+# (snapraid-daemon-storage) and, for the test of the move, the earlier package itself, built from
+# the tag v2.2.s14 of the checkout when it has it (its files leave the releases).
 ARG LAB_PACKAGES=0
 RUN mkdir /pkg && if [ "$LAB_PACKAGES" = 1 ]; then \
         cd /src/diskflux && ./configure > /dev/null && make dist > /dev/null \
-     && bash makedeb.sh > /dev/null \
-     && cp diskflux_*_amd64.deb /pkg/daemon.deb && cp installer.sh /pkg/installer.sh; \
+     && bash makedeb.sh > /dev/null && bash maketransition.sh > /dev/null \
+     && cp diskflux_*_amd64.deb /pkg/daemon.deb && cp snapraid-daemon-storage_*_amd64.deb /pkg/transition.deb \
+     && cp installer.sh /pkg/installer.sh \
+     && if git -C /src/diskflux rev-parse -q --verify refs/tags/v2.2.s14 > /dev/null; then \
+            mkdir /src/s14 && git -C /src/diskflux archive v2.2.s14 | tar -x -C /src/s14 \
+         && cd /src/s14 && echo 2.2.s14 > .version && ./autogen.sh > /dev/null 2>&1 \
+         && ./configure > /dev/null && make dist > /dev/null && bash makedeb.sh > /dev/null \
+         && cp snapraid-daemon-storage_2.2.s14-1_amd64.deb /pkg/s14.deb; \
+        fi; \
     fi
 
 FROM debian:bookworm-slim

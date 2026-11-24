@@ -35,6 +35,15 @@ if [ "${LAB_EXISTING:-0}" = 1 ]; then
     log "tests ended with $rc failures"
     exit $rc
 fi
+# The same for DiskFlux next to SnapRAID Daemon, then the move from the earlier package
+if [ "${LAB_COEXIST:-0}" = 1 ]; then
+    /usr/local/share/lab/tests/coexist-test.sh
+    rc=$?
+    /usr/local/share/lab/tests/move-test.sh
+    rc=$((rc + $?))
+    log "tests ended with $rc failures"
+    exit $rc
+fi
 
 mkdir -p $LAB/img $LAB/etc $LAB/log $LAB/smart /mnt/lab /run/lab/map /run/lab/standby
 rm -f /run/lab/map/* /run/lab/standby/*
