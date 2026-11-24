@@ -271,7 +271,7 @@ check "and the new snapshot no longer has the file" test ! -e "$D/f1/.snapraid/s
 # ---------------------------------------------------------------------------
 section "a disk lost with changes not synced, rebuilt from the snapshots of the others"
 
-sums() { (cd "$1" && find . -type f ! -name 'snapraid.*' ! -path './.snapraid/*' -print0 | sort -z | xargs -0 -r sha256sum); }
+sums() { (cd "$1" && find . -type f ! -name 'snapraid.*' ! -path './.snapraid/*' ! -path './.lab-space/*' -print0 | sort -z | xargs -0 -r sha256sum); }
 BEFORE=$(sums $D/f2)
 check "f2 has files" test -n "$BEFORE"
 lab scenario dead-flash-disk >/dev/null

@@ -78,7 +78,7 @@ format() { # NAME FSTYPE LABEL PURPOSE WIPE -> PART UUID
     PART=$(echo "$JOB" | jq -r .partition); UUID=$(echo "$JOB" | jq -r .uuid)
 }
 mount_api() { req POST $S/mount "{\"source\":\"$1\",\"target\":\"$2\",\"fstype\":\"${3:-ext4}\",\"options\":\"${4:-defaults,noatime,nofail}\",\"persist\":${5:-true}}"; }
-sums() { (cd "$1" && find . -type f ! -name 'snapraid.*' -print0 | sort -z | xargs -0 -r sha256sum); }
+sums() { (cd "$1" && find . -type f ! -name 'snapraid.*' ! -path './.lab-space/*' -print0 | sort -z | xargs -0 -r sha256sum); }
 fill() { # DIR COUNT KB
     mkdir -p "$1"
     for i in $(seq 1 "$2"); do head -c "${3}K" /dev/urandom > "$1/file-$i.bin"; done

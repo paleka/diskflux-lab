@@ -85,7 +85,7 @@ disk() { # NAME PURPOSE: format and mount at $T/NAME
     mount_api "UUID=$UUID" "$T/$1"
     [ "$CODE" = 200 ] || { fail "disk $1 is prepared" "$(msg)"; return 1; }
 }
-sums() { (cd "$1" && find . -type f ! -name 'snapraid.*' -print0 | sort -z | xargs -0 -r sha256sum); }
+sums() { (cd "$1" && find . -type f ! -name 'snapraid.*' ! -path './.lab-space/*' -print0 | sort -z | xargs -0 -r sha256sum); }
 fill() { # DIR COUNT KB
     mkdir -p "$1"
     for i in $(seq 1 "$2"); do head -c "${3}K" /dev/urandom > "$1/file-$i.bin"; done

@@ -73,7 +73,7 @@ format() { # NAME FSTYPE LABEL PURPOSE -> PART UUID
     PART=$(echo "$JOB" | jq -r .partition); UUID=$(echo "$JOB" | jq -r .uuid)
 }
 mount_api() { req POST $S/mount "{\"source\":\"$1\",\"target\":\"$2\",\"fstype\":\"${3:-ext4}\",\"options\":\"defaults,noatime,nofail\",\"persist\":true}"; }
-sums() { (cd "$1" && find . -type f ! -name 'snapraid.*' -print0 | sort -z | xargs -0 -r sha256sum); }
+sums() { (cd "$1" && find . -type f ! -name 'snapraid.*' ! -path './.lab-space/*' -print0 | sort -z | xargs -0 -r sha256sum); }
 fill() { # DIR MB : files of 8 MB, old enough to be moved by a balance
     mkdir -p "$1"
     for i in $(seq 1 $(( $2 / 8 ))); do head -c 8M /dev/urandom > "$1/big-$i.bin" || return 1; done
