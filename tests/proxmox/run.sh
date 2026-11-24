@@ -56,14 +56,14 @@ template() { # debian | rocky
 	echo "$t"
 }
 
-new_lxc() { # id name template
-	local id=$1 name=$2 tpl=$3
+new_lxc() { # id name template [pct create options...]
+	local id=$1 name=$2 tpl=$3; shift 3
 	pct status "$id" >/dev/null 2>&1 && die "guest $id exists already (destroy it first: bash run.sh destroy $id)"
 	qm status "$id" >/dev/null 2>&1 && die "guest $id exists already"
 	say "creating LXC $id $name from $tpl"
 	pct create "$id" "$tpl" --hostname "$name" --cores 2 --memory 2048 --swap 512 --rootfs local-lvm:16 \
 		--net0 name=eth0,bridge=vmbr0,ip=dhcp,ip6=auto --unprivileged 1 --features nesting=1 \
-		--tags diskflux-test --onboot 0 --description "DiskFlux test machine (run.sh), safe to destroy" >/dev/null || die "pct create"
+		--tags diskflux-test --onboot 0 --description "DiskFlux test machine (run.sh), safe to destroy" "$@" >/dev/null || die "pct create"
 	pct start "$id" || die "pct start"
 	for _ in $(seq 1 60); do pct exec "$id" -- sh -c 'ip -4 route | grep -q default' 2>/dev/null && break; sleep 2; done
 	sleep 3
@@ -100,7 +100,10 @@ test-lxc)
 coexist)
 	ID=${2:-140}
 	background "coexist-$ID" "$@"
-	new_lxc "$ID" dft-coexist "$(template debian)"
+	# six disks of their own for the two arrays: SnapRAID wants a filesystem per disk
+	new_lxc "$ID" dft-coexist "$(template debian)" \
+		--mp0 local-lvm:2,mp=/srv/a/d1 --mp1 local-lvm:2,mp=/srv/a/d2 --mp2 local-lvm:2,mp=/srv/a/parity \
+		--mp3 local-lvm:1,mp=/srv/b/d1 --mp4 local-lvm:1,mp=/srv/b/d2 --mp5 local-lvm:1,mp=/srv/b/parity
 	in_lxc "$ID" proxmox/systemd-check.sh before; RC1=$?
 	say "browser check window: DiskFlux http://$(pct exec "$ID" -- hostname -I | awk '{print $1}'):7700, 2 minutes"
 	sleep 120

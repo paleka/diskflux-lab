@@ -66,10 +66,16 @@ if [ "${1:-}" = before ]; then
 	apt-get install -y -q --no-install-recommends $W/snapraid.deb $W/his.deb > $W/his-install.log 2>&1 || die "his install"
 
 	echo "== his machine: the default daemon and the instance backup, as his manual says"
-	for a in a b; do mkdir -p /srv/$a/d1 /srv/$a/d2 /srv/$a/parity; for i in $(seq 1 20); do head -c 40000 /dev/urandom > /srv/$a/d1/f$i; head -c 30000 /dev/urandom > /srv/$a/d2/g$i; done; done
+	# SnapRAID wants each disk on a filesystem of its own: the mount points of the LXC
+	# (run.sh gives six), else tmpfs
+	for m in /srv/a/d1 /srv/a/d2 /srv/a/parity /srv/b/d1 /srv/b/d2 /srv/b/parity; do
+		mkdir -p $m; mountpoint -q $m || mount -t tmpfs -o size=400m tmpfs $m || die "cannot mount a disk at $m"
+	done
+	for a in a b; do for i in $(seq 1 20); do head -c 40000 /dev/urandom > /srv/$a/d1/f$i; head -c 30000 /dev/urandom > /srv/$a/d2/g$i; done; done
 	printf 'parity /srv/a/parity/snapraid.parity\ncontent /srv/a/d1/snapraid.content\ncontent /srv/a/d2/snapraid.content\ndata d1 /srv/a/d1\ndata d2 /srv/a/d2\n' > /etc/snapraid.conf
 	printf 'parity /srv/b/parity/snapraid.parity\ncontent /srv/b/d1/snapraid.content\ncontent /srv/b/d2/snapraid.content\ndata d1 /srv/b/d1\ndata d2 /srv/b/d2\n' > /etc/snapraid-backup.conf
-	snapraid -c /etc/snapraid.conf sync >/dev/null 2>&1; snapraid -c /etc/snapraid-backup.conf sync >/dev/null 2>&1
+	snapraid -c /etc/snapraid.conf sync > $W/sync-a.log 2>&1 || die "first sync of array a (see $W/sync-a.log)"
+	snapraid -c /etc/snapraid-backup.conf sync > $W/sync-b.log 2>&1 || die "first sync of array b (see $W/sync-b.log)"
 	# his daemon on the network for the browser checks, protected by an address list, on IPv4 and IPv6
 	if [ $V6 = 1 ]; then PORTS='0.0.0.0:7627,[::1]:7627'; else PORTS=0.0.0.0:7627; fi
 	cat >> /etc/snapraidd.conf <<-C
@@ -118,14 +124,14 @@ if [ "${1:-}" = before ]; then
 
 	echo "== a sync of each while the other's runs, on the same array"
 	idle $D; idle $H
-	head -c 300M /dev/urandom > /srv/a/d1/big1.bin; head -c 300M /dev/urandom > /srv/a/d2/big2.bin
+	head -c 120M /dev/urandom > /srv/a/d1/big1.bin; head -c 120M /dev/urandom > /srv/a/d2/big2.bin
 	post "$H/schedule" '{"tasks":[{"command":"sync"}]}' >/dev/null
 	for _ in $(seq 1 50); do fuser /srv/a/d1/snapraid.content.lock >/dev/null 2>&1 && break; sleep 0.2; done
 	post "$D/schedule" '{"tasks":[{"command":"sync"}]}' >/dev/null
 	idle $D; idle $H
 	check "a sync of DiskFlux while his runs: refused by SnapRAID's lock" in_use $D
 	check "his sync completes" test "$(last_task $H sync)" = "terminated 0"
-	head -c 300M /dev/urandom > /srv/a/d1/big3.bin
+	head -c 120M /dev/urandom > /srv/a/d1/big3.bin
 	post "$D/schedule" '{"tasks":[{"command":"sync"}]}' >/dev/null
 	for _ in $(seq 1 50); do fuser /srv/a/d1/snapraid.content.lock >/dev/null 2>&1 && break; sleep 0.2; done
 	post "$H/schedule" '{"tasks":[{"command":"sync"}]}' >/dev/null
