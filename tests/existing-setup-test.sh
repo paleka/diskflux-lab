@@ -100,6 +100,7 @@ stop_daemon() {
 
 teardown() {
     stop_daemon
+    pkill -x snapraidd 2>/dev/null; sleep 1
     umount /mnt/storage 2>/dev/null
     for m in /mnt/disk? /mnt/parity?; do umount "$m" 2>/dev/null; done
     for f in "$IMG"/*.img; do
@@ -216,7 +217,7 @@ EOF
 
 # run the installer of the checkout with the packages of the image; the output is in $W/install.log
 install() {
-    env SNAPRAIDD_PASSWORD=test SNAPRAIDD_DEB="$PKG/daemon.deb" SNAPRAID_DEB="$PKG/snapraid-new.deb" \
+    env DISKFLUX_PASSWORD=test DISKFLUX_DEB="$PKG/daemon.deb" SNAPRAID_DEB="$PKG/snapraid-new.deb" \
         SNAPRAID_MIGRATE_DEB="$PKG/snapraid-migrate.deb" "$@" sh "$PKG/installer.sh" > "$W/install.log" 2>&1
 }
 installed() { dpkg-query -W -f='${Status}' "$1" 2>/dev/null | grep -q "ok installed"; }
@@ -434,10 +435,10 @@ section "other machines"
 teardown
 check "a second machine like the first" machine package
 echo new > /mnt/disk1/photos/new.jpg
-install SNAPRAID_SYNC=1 SNAPRAIDD_AUTO=1; RC=$?
+install SNAPRAID_SYNC=1 DISKFLUX_AUTO=1; RC=$?
 check "changes not synced, with SNAPRAID_SYNC=1: it syncs and installs" test $RC = 0
 check "the array is synced" snapraid diff
-check "with SNAPRAIDD_AUTO=1 the daemon keeps its nightly maintenance" grep -qx "maintenance_schedule = 02:00" /etc/diskflux.conf
+check "with DISKFLUX_AUTO=1 the daemon keeps its nightly maintenance" grep -qx "maintenance_schedule = 02:00" /etc/diskflux.conf
 check "and its spin down" grep -qx "spindown_idle_minutes = 15" /etc/diskflux.conf
 
 teardown
@@ -467,18 +468,34 @@ teardown
 apt-get install -y -q "$PKG/snapraid-new.deb" "$PKG/snapraid-daemon.deb" >/dev/null 2>&1
 check "a machine with SnapRAID Daemon of its author installed" installed snapraid-daemon
 echo "# edited by hand" >> /etc/snapraidd.conf
+/usr/bin/snapraidd -c /etc/snapraidd.conf; sleep 3
+HISPID=$(pidof snapraidd)
+check "SnapRAID Daemon runs" test -n "$HISPID"
 official_state() {
-    dpkg-query -W -f='${Package} ${Version} ${Status}\n' | sort
-    dpkg -L snapraid-daemon | while read -r f; do [ -f "$f" ] && sha256sum "$f"; done
+    dpkg-query -W -f='${Package} ${Version} ${Status}\n' snapraid snapraid-daemon
+    dpkg -L snapraid-daemon snapraid | while read -r f; do [ -f "$f" ] && sha256sum "$f"; done
     stat -c '%n %s %Y %a %U' /etc/snapraidd.conf
 }
 official_state > "$W/official1"
 install; RC=$?
 official_state > "$W/official2"
-check "SnapRAID Daemon installed: it stops" test $RC = 1
-check "it says that DiskFlux never replaces it" grep -q "DiskFlux never replaces" "$W/install.log"
-check "its package, its files and its configuration are as they were" cmp "$W/official1" "$W/official2"
-check "nothing was installed" not installed diskflux
+check "SnapRAID Daemon installed: the installer completes" test $RC = 0
+check "it says that SnapRAID Daemon is kept as it is" grep -q "it is kept as it is" "$W/install.log"
+check "its package, its files, its configuration and the engine are as they were" cmp "$W/official1" "$W/official2"
+check "SnapRAID Daemon still runs, the same process" test "$(pidof snapraidd)" = "$HISPID"
+check "DiskFlux is installed" installed diskflux
+check "its settings were imported" grep -q "^# Settings imported from /etc/snapraidd.conf" /etc/diskflux.conf
+check "both addresses are given" sh -c "grep -q 'SnapRAID Daemon:  http://127.0.0.1:7627' '$W/install.log' && grep -q 'DiskFlux:         http://127.0.0.1:7700' '$W/install.log'"
+$DAEMON; sleep 3
+check "both run: SnapRAID Daemon answers on 7627" test "$(curl -s -m5 -o /dev/null -w '%{http_code}' http://127.0.0.1:7627/snapraid/v1/array)" = 200
+check "both run: DiskFlux answers on 7700" test "$(curl -s -m5 -o /dev/null -w '%{http_code}' http://127.0.0.1:7700/snapraid/v1/array)" = 200
+cp /etc/diskflux.conf "$W/df1"
+install; RC=$?
+official_state > "$W/official3"
+check "a second run completes" test $RC = 0
+check "and changes nothing: SnapRAID Daemon as it was" cmp "$W/official1" "$W/official3"
+check "and changes nothing: the DiskFlux configuration as it was" cmp "$W/df1" /etc/diskflux.conf
+check "SnapRAID Daemon still runs, the same process, after the second run" test "$(pidof snapraidd)" = "$HISPID"
 
 teardown
 echo
