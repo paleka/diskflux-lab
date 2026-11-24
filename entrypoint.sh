@@ -404,7 +404,7 @@ if [ "$PRESET" = ready ] && [ $has_media = 1 ] && [ ! -f $LAB/etc/snapraid/media
         echo "autosave 1"
     } > $LAB/etc/snapraid/media.conf
     cat > $LAB/etc/diskflux.d/media.conf <<CONF
-# SnapRAID Daemon lab, options of the array 'media' (the ones of the machine are in diskflux.conf)
+# DiskFlux lab, options of the array 'media' (the ones of the machine are in diskflux.conf)
 engine_conf = $LAB/etc/snapraid/media.conf
 maintenance_schedule = 03:00
 sync_threshold_deletes = 50
@@ -443,7 +443,7 @@ if [ "$PRESET" = ready ] && has f1 && [ ! -f $LAB/etc/snapraid/flash.conf ]; the
         fi
     } > $LAB/etc/snapraid/flash.conf
     cat > $LAB/etc/diskflux.d/flash.conf <<CONF
-# SnapRAID Daemon lab, options of the array 'flash' (the ones of the machine are in diskflux.conf)
+# DiskFlux lab, options of the array 'flash' (the ones of the machine are in diskflux.conf)
 engine_conf = $LAB/etc/snapraid/flash.conf
 # twice a day: these disks change often
 maintenance_schedule = 01:00, 13:00
@@ -464,7 +464,7 @@ CONF
 fi
 if [ ! -f $LAB/etc/diskflux.conf ]; then
     cat > $LAB/etc/diskflux.conf <<CONF
-# SnapRAID Daemon lab configuration (see diskflux.conf.example for every option)
+# DiskFlux lab configuration (see diskflux.conf.example for every option)
 sys_engine = /usr/bin/snapraid
 sys_log_directory = $LAB/log
 sys_log_retention_days = 120
@@ -592,7 +592,7 @@ seed_space() {
     local f=$LAB/etc/diskflux-space.log
     [ -f "$f" ] && return
     local today=$(( ($(date +%s) + $(date +%z | awk '{s=substr($0,1,1)=="-"?-1:1; print s*(substr($0,2,2)*3600+substr($0,4,2)*60)}')) / 86400 ))
-    echo "# Space of the arrays of the SnapRAID Daemon, one line a day: day (days since 1970), array, used bytes, total bytes of the data disks. Made up by the lab for the days before it started." > "$f"
+    echo "# Space of the arrays of DiskFlux, one line a day: day (days since 1970), array, used bytes, total bytes of the data disks. Made up by the lab for the days before it started." > "$f"
     local conf name
     for conf in $LAB/etc/snapraid.conf $LAB/etc/snapraid/*.conf; do
         [ -f "$conf" ] || continue
@@ -620,7 +620,7 @@ seed_space() {
 log "starting diskflux, UI '$UI' on http://localhost:7700"
 # -N: serve the UI files straight from /ui/<name> without caching, so edits show up on reload
 # the lab never suspends or powers off the machine when idle: the daemon only logs it
-export SNAPRAIDD_HOST_DRYRUN=1
+export DISKFLUX_HOST_DRYRUN=1
 diskflux -f -N -c $LAB/etc/diskflux.conf -C $LAB/etc/snapraid.conf -p /run/diskflux.pid &
 DAEMON_PID=$!
 if [ "${LAB_RUN_TESTS:-0}" = 1 ]; then

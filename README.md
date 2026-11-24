@@ -2,7 +2,7 @@
 
 A Docker lab with emulated disks, to try and to test what the
 [`storage` branch of paleka/diskflux](https://github.com/paleka/diskflux/tree/storage)
-adds to SnapRAID Daemon: the **Storage** and **Arrays** pages, the **pages for everyday use**
+adds to SnapRAID Daemon (as DiskFlux): the **Storage** and **Arrays** pages, the **pages for everyday use**
 (Home, My files, Sharing, Backups, Disks, Protection, Alerts, System, Help) and the settings of
 the machine behind them.
 
@@ -121,7 +121,7 @@ as it starts (`shots-ready.json`), after `lab scenario mass-delete` and a mainte
 | What | Version |
 |---|---|
 | SnapRAID engine | release 15.1, unmodified, commit `4054832` (checked by the `Dockerfile`) |
-| SnapRAID Daemon | the checkout next to this folder; all the tests last run with `storage` at `8914e17`, the pictures taken with `7250acd` |
+| DiskFlux | the checkout next to this folder; all the tests last run with `storage` at `8914e17`, the pictures taken with `7250acd` |
 | mergerfs, xfsprogs, btrfs-progs | the ones of Debian 12 |
 
 ## Start
@@ -377,7 +377,7 @@ and started by plugging the disk in; the wipe of the blank disk `s2`, refused fo
 array, mounted disks and partitions; the programs keeping a disk busy; SMART self-tests and their
 log; power settings refused by a disk; diagnostics without serial numbers and secrets; and the
 backup and restore of the settings. In the lab the daemon only logs the idle action
-(`SNAPRAIDD_HOST_DRYRUN=1`): the container must not suspend the machine.
+(`DISKFLUX_HOST_DRYRUN=1`): the container must not suspend the machine.
 
 An eighth one, `tests/tiers-test.sh`, checks the moves of files among the disks of a pool and
 the move of the parity, on the showcase lab (stop the lab first; about five minutes, three of

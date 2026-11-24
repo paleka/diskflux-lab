@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Robert Paleka
 #
-# SnapRAID + SnapRAID Daemon lab image.
+# SnapRAID + DiskFlux lab image.
 #
 # The SnapRAID engine is the original one, taken from its repository at a pinned release.
 # The daemon comes from the "daemon" build context: a checkout of
@@ -23,7 +23,7 @@ RUN git clone --depth 1 --branch "$SNAPRAID_TAG" "$SNAPRAID_REPO" /src/snapraid 
 COPY smartctl-launcher.c /src/
 RUN gcc -O2 -o /smartctl /src/smartctl-launcher.c
 
-# SnapRAID Daemon with the Storage page. Whatever was built in the checkout is dropped
+# DiskFlux, the fork of SnapRAID Daemon with the Storage page. Whatever was built in the checkout is dropped
 # (only ignored files are removed), then it is built out of tree.
 COPY --from=daemon . /src/diskflux
 RUN cd /src/diskflux \

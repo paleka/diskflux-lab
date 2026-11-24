@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Robert Paleka
-# Example of 'hook_script' of SnapRAID Daemon: it is run before a task works on the array
+# Example of 'hook_script' of DiskFlux: it is run before a task works on the array
 # (task-begin) and after it (task-end, or task-error). A real one stops what writes to the
 # disks, or takes a snapshot of a database. This one writes a line: read them with `lab hooks`.
 # A task-begin that fails stops the task: try it with `lab hooks block`.

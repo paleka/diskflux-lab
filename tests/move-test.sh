@@ -87,7 +87,8 @@ before() { echo "$W/run/before-$(echo "$1" | tr / _)"; }
 moved_checks() {
   check "the old configuration is gone from its old name" test ! -e /etc/snapraidd.conf
   check "the settings are DiskFlux's, with a line saying where from" sh -c "head -n 1 /etc/diskflux.conf | grep -q '^# Moved from /etc/snapraidd.conf of snapraid-daemon-storage on '"
-  check "every line of the settings kept, but the alerts script's new name" bash -c "diff <(sed 1d /etc/diskflux.conf) $(before /etc/snapraidd.conf) | grep '^[<>]' | grep -v 'alerts.sh' | grep -q . && exit 1 || exit 0"
+  check "every setting kept, but the alerts script's new name (comments take the new names)" bash -c "diff <(sed 1d /etc/diskflux.conf) $(before /etc/snapraidd.conf) | grep '^[<>]' | grep -v 'alerts.sh' | grep -v '^[<>] *#' | grep -q . && exit 1 || exit 0"
+  check "the comments of the settings name DiskFlux, not the old program or port" sh -c "! grep '^ *#' /etc/diskflux.conf | grep -v '^# Moved from /etc/snapraidd.conf' | grep -q 'snapraidd\|7627\|SnapRAID Daemon Config'"
   check "the alerts point to the script's new name" grep -qxF 'notify_result = sh /etc/diskflux-alerts.sh "%s" "%n" "%t"' /etc/diskflux.conf
   check "no port written: the default of DiskFlux, 7700, at the addresses of the old default" sh -c "! grep -q '^net_port' /etc/diskflux.conf"
   check "the login is kept" grep -qxF "net_auth_credential = $CRED" /etc/diskflux.conf
@@ -105,7 +106,8 @@ moved_checks() {
   check "the credentials of the remote stay root only" test "$(stat -c %a /etc/diskflux-remote-nas.cred)" = 600
   check "the shares of Samba under their new name" sh -c "test ! -e /etc/samba/snapraidd-shares.conf && cmp /etc/samba/diskflux-shares.conf $(before /etc/samba/snapraidd-shares.conf)"
   check "smb.conf includes the new name" grep -qx "include = /etc/samba/diskflux-shares.conf" /etc/samba/smb.conf
-  check "smb.conf changed only in that line" bash -c "diff /etc/samba/smb.conf $(before /etc/samba/smb.conf) | grep '^[<>]' | grep -v 'include = ' | grep -q . && exit 1 || exit 0"
+  check "smb.conf changed only in that line and the comment above it" bash -c "diff /etc/samba/smb.conf $(before /etc/samba/smb.conf) | grep '^[<>]' | grep -v 'include = \|# Shares of ' | grep -q . && exit 1 || exit 0"
+  check "the comment names DiskFlux" grep -qx "# Shares of DiskFlux. Keep this line last." /etc/samba/smb.conf
   check "smb.conf as it was is kept as smb.conf.diskflux.bak" cmp /etc/samba/smb.conf.diskflux.bak $(before /etc/samba/smb.conf)
   check "the NFS exports under their new name" sh -c "test ! -e /etc/exports.d/snapraidd.exports && cmp /etc/exports.d/diskflux.exports $(before /etc/exports.d/snapraidd.exports)"
   check "DiskFlux is installed" sh -c "dpkg-query -W -f='\${Status}' diskflux | grep -q 'ok installed'"

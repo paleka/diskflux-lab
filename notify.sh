@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Robert Paleka
 # Stands for the mail, ntfy or webhook command of 'notify_start', 'notify_result' and
-# 'notify_heartbeat' of SnapRAID Daemon: what the daemon would send is kept as a file in
+# 'notify_heartbeat' of DiskFlux: what the daemon would send is kept as a file in
 # /lab/notify/inbox. Read them with `lab inbox`.
 #   notify.sh start SUBJECT LEVEL TASK | notify.sh result SUBJECT LEVEL TASK CODE | notify.sh heartbeat
 LAB=${LAB_DIR:-/lab}

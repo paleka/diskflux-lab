@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Robert Paleka
 #
-# Updates the demo to a release of SnapRAID Daemon and to the newest lab, then
+# Updates the demo to a release of DiskFlux and to the newest lab, then
 # starts it again. The demo runs in Docker: it is updated by rebuilding its image
 # from the sources, not by the installer or diskflux-upgrade.
 #
 #   sudo /opt/demo/snapraid-lab/demo/upgrade.sh            the latest release
-#   sudo /opt/demo/snapraid-lab/demo/upgrade.sh 2.2.s9     that release
+#   sudo /opt/demo/snapraid-lab/demo/upgrade.sh 26.12.0    that release
 #   sudo /opt/demo/snapraid-lab/demo/upgrade.sh storage    the newest work, not released yet
 #   sudo /opt/demo/snapraid-lab/demo/upgrade.sh --check    what runs and what is available
 #
@@ -27,7 +27,9 @@ DAEMON=$(cd "$DAEMON" && pwd)
 git -C "$DAEMON" fetch -q --tags --force origin || { echo "upgrade.sh: could not fetch the daemon from $(git -C "$DAEMON" remote get-url origin)" >&2; exit 1; }
 git -C "$LAB" fetch -q origin || { echo "upgrade.sh: could not fetch the lab from $(git -C "$LAB" remote get-url origin)" >&2; exit 1; }
 
-latest=$(git -C "$DAEMON" tag -l 'v*.s*' | sort -V | tail -n 1)
+# the releases of DiskFlux are vYY.M.N; before them, v2.2.s1 to v2.2.s14. The
+# tags of SnapRAID Daemon (v2.2) are in the checkout too, and are not releases
+latest=$(git -C "$DAEMON" tag -l 'v*' | grep -E '^v([0-9]{2}\.[0-9]{1,2}\.[0-9]+|[0-9.]+\.s[0-9]+)$' | sort -V | tail -n 1)
 now=$(git -C "$DAEMON" describe --tags --match 'v*' 2>/dev/null || git -C "$DAEMON" rev-parse --short HEAD)
 
 if [ "${1:-}" = "--check" ]; then
