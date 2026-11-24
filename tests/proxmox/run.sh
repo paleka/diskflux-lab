@@ -13,7 +13,8 @@
 #   bash run.sh rpm [ID]             a new Rocky/Alma LXC: the .rpm next to his .rpm,
 #                                    and the move from the s14 .rpm (default ID 141)
 #   bash run.sh docker [ID] [IP]     a new Debian VM with Docker: every suite of the lab
-#                                    (default ID 142, IP: the first free from 192.168.50.84)
+#                                    (default ID 142, IP: the first free from 192.168.50.84;
+#                                    SUITES, DAEMON_BRANCH, LAB_BRANCH to choose)
 #   bash run.sh status               the end of every log
 #   bash run.sh destroy ID...        removes guests tagged diskflux-test (and only those)
 #
@@ -34,7 +35,7 @@ background() {
 	local name=$1; shift
 	if [ -z "${DFT_INNER:-}" ]; then
 		systemctl reset-failed "dft-$name" >/dev/null 2>&1
-		systemd-run --unit="dft-$name" --collect --quiet --setenv=DFT_INNER=1 --setenv=BRANCH="$BRANCH" --setenv=RAWREF="${RAWREF:-$BRANCH}" \
+		systemd-run --unit="dft-$name" --collect --quiet --setenv=DFT_INNER=1 --setenv=BRANCH="$BRANCH" --setenv=RAWREF="${RAWREF:-$BRANCH}" --setenv=DAEMON_BRANCH="${DAEMON_BRANCH:-$BRANCH}" --setenv=LAB_BRANCH="${LAB_BRANCH:-$BRANCH}" --setenv=SUITES="${SUITES:-}" \
 			-p StandardOutput=file:$OUT/$name.log -p StandardError=file:$OUT/$name.log -- bash "$(readlink -f "$0")" "$@" \
 			&& echo "started in the background: tail -f $OUT/$name.log"
 		exit 0
@@ -151,7 +152,7 @@ docker)
 	SSH="ssh -i $KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=5 dft@$IP"
 	for _ in $(seq 1 90); do $SSH true 2>/dev/null && break; sleep 5; done
 	$SSH true || die "the VM does not answer on ssh at $IP"
-	$SSH "sudo cloud-init status --wait >/dev/null 2>&1; curl -fsSL '$RAW/proxmox/docker-suites.sh' -o docker-suites.sh && sudo env BRANCH=$BRANCH bash docker-suites.sh"; RC=$?
+	$SSH "sudo cloud-init status --wait >/dev/null 2>&1; curl -fsSL '$RAW/proxmox/docker-suites.sh' -o docker-suites.sh && sudo env BRANCH=$BRANCH DAEMON_BRANCH=${DAEMON_BRANCH:-$BRANCH} LAB_BRANCH=${LAB_BRANCH:-$BRANCH} bash docker-suites.sh ${SUITES:-}"; RC=$?
 	say "docker $ID done: $RC suites failed"
 	;;
 status)
