@@ -127,6 +127,11 @@ nodes() { # loop device
     for p in /sys/block/$base/${base}p*; do
         [ -e "$p/dev" ] || continue
         devno=$(cat "$p/dev")
+        # a node left from an earlier partition may hold an old number (loop partitions
+        # get a new one each time the table is written): made again
+        if [ -b "/dev/${p##*/}" ] && [ "$(stat -c '%t:%T' "/dev/${p##*/}")" != "$(printf '%x:%x' "${devno%%:*}" "${devno##*:}")" ]; then
+            rm -f "/dev/${p##*/}"
+        fi
         [ -b "/dev/${p##*/}" ] || mknod "/dev/${p##*/}" b "${devno%%:*}" "${devno##*:}"
         uuid=$(blkid -p -s UUID -o value "/dev/${p##*/}" 2>/dev/null)
         if [ -n "$uuid" ]; then
