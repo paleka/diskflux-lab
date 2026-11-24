@@ -17,11 +17,12 @@
 #   bash run.sh status               the end of every log
 #   bash run.sh destroy ID...        removes guests tagged diskflux-test (and only those)
 #
-# New guests are tagged diskflux-test and named dft-*. Environment: BRANCH (coexist).
+# New guests are tagged diskflux-test and named dft-*. Environment: BRANCH (coexist),
+# RAWREF (a commit of the lab to fetch the scripts from, past GitHub's cache).
 
 set -u
 BRANCH=${BRANCH:-coexist}
-RAW=https://raw.githubusercontent.com/paleka/diskflux-lab/$BRANCH/tests
+RAW=https://raw.githubusercontent.com/paleka/diskflux-lab/${RAWREF:-$BRANCH}/tests
 OUT=/root/diskflux-t13
 NODE=$(hostname)
 mkdir -p $OUT
@@ -33,7 +34,7 @@ background() {
 	local name=$1; shift
 	if [ -z "${DFT_INNER:-}" ]; then
 		systemctl reset-failed "dft-$name" >/dev/null 2>&1
-		systemd-run --unit="dft-$name" --collect --quiet --setenv=DFT_INNER=1 --setenv=BRANCH="$BRANCH" \
+		systemd-run --unit="dft-$name" --collect --quiet --setenv=DFT_INNER=1 --setenv=BRANCH="$BRANCH" --setenv=RAWREF="${RAWREF:-$BRANCH}" \
 			-p StandardOutput=file:$OUT/$name.log -p StandardError=file:$OUT/$name.log -- bash "$(readlink -f "$0")" "$@" \
 			&& echo "started in the background: tail -f $OUT/$name.log"
 		exit 0

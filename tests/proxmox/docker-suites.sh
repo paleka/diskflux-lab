@@ -8,11 +8,12 @@
 #     bash docker-suites.sh [SUITE...]     default: all of them
 #
 # Logs in /root/dfsuites/SUITE.log, a line per suite in /root/dfsuites/summary.
-# Environment: BRANCH (coexist), for both the daemon and the lab.
+# Environment: BRANCH (coexist) for both the daemon and the lab, or DAEMON_BRANCH and
+# LAB_BRANCH apart (to compare with an earlier state).
 
 set -u
 BRANCH=${BRANCH:-coexist}
-W=/root/dfsuites
+W=${W:-/root/dfsuites}
 SUITES=${*:-test arrays sizes showcase existing coexist machine tiers extras}
 mkdir -p $W
 say() { echo "[$(date +%H:%M:%S)] $*"; }
@@ -28,9 +29,9 @@ say "$($DC version 2>&1 | head -1)"
 
 cd $W
 rm -rf diskflux-daemon diskflux-lab
-git clone -q -b "$BRANCH" https://github.com/paleka/diskflux.git diskflux-daemon || exit 99
+git clone -q -b "${DAEMON_BRANCH:-$BRANCH}" https://github.com/paleka/diskflux.git diskflux-daemon || exit 99
 git -C diskflux-daemon fetch -q --tags
-git clone -q -b "$BRANCH" https://github.com/paleka/diskflux-lab.git diskflux-lab || exit 99
+git clone -q -b "${LAB_BRANCH:-$BRANCH}" https://github.com/paleka/diskflux-lab.git diskflux-lab || exit 99
 say "daemon $(git -C diskflux-daemon rev-parse --short HEAD), lab $(git -C diskflux-lab rev-parse --short HEAD)"
 cd diskflux-lab
 : > $W/summary
@@ -42,7 +43,7 @@ for s in $SUITES; do
 	start=$(date +%s)
 	$DC -f $f up --build --abort-on-container-exit --exit-code-from tests > $W/$s.log 2>&1; rc=$?
 	$DC -f $f down -v >/dev/null 2>&1
-	res=$(grep -aEo 'passed: [0-9]+ +failed: [0-9]+' $W/$s.log | tail -1)
+	res=$(grep -aEo 'passed:? [0-9]+,? +failed:? [0-9]+' $W/$s.log | tail -1)
 	line="suite $s: exit $rc, ${res:-no result line}, $(( ($(date +%s) - start) / 60 )) min"
 	echo "$line" | tee -a $W/summary
 	[ $rc = 0 ] || { FAILED=$((FAILED+1)); grep -a 'FAIL' $W/$s.log | head -20; }
