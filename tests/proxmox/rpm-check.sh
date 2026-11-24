@@ -86,6 +86,8 @@ dnf -y -q remove snapraid-daemon > /dev/null 2>&1
 rm -f /etc/snapraidd.conf /etc/snapraidd.conf.rpmsave /etc/diskflux.conf /etc/diskflux.conf.rpmsave
 dnf -y -q install $W/s14.rpm > $W/s14.log 2>&1 || die "s14 install (see $W/s14.log)"
 echo 'maintenance_schedule = 04:00' >> /etc/snapraidd.conf
+echo 'net_auth_credential = robert:$argon2id$v=19$m=65536,t=3,p=4$c2FsdHNhbHQ$aGFzaGhhc2hoYXNo' >> /etc/snapraidd.conf
+cp /etc/snapraidd.conf $W/s14.conf
 mkdir -p /etc/snapraidd.d; printf 'engine_conf = /etc/snapraid.conf\n' > /etc/snapraidd.d/media.conf
 printf 'shares = media\n' > /etc/snapraidd-host.conf
 systemctl enable --now snapraidd >/dev/null 2>&1; wait_active snapraidd; sleep 2
@@ -98,6 +100,8 @@ check "DiskFlux active and enabled on 7700, the old service gone" bash -c 'syste
 check "the settings moved" bash -c "head -1 /etc/diskflux.conf | grep -q '^# Moved from' && grep -q '^maintenance_schedule = 04:00' /etc/diskflux.conf"
 check "the arrays and machine settings moved" bash -c "test -f /etc/diskflux.d/media.conf && grep -qx 'shares = media' /etc/diskflux-host.conf && test ! -e /etc/snapraidd.d"
 check "nothing of the move left in /run" bash -c "test ! -e /run/diskflux-move.list"
+check "the login moved too (the file is the old one, not the package's)" bash -c "grep -q '^net_auth_credential' /etc/diskflux.conf || ! grep -q '^net_auth_credential' $W/s14.conf"
+check "the default file of the package kept as diskflux.conf.rpmnew, nothing waiting" bash -c "test -f /etc/diskflux.conf.rpmnew && test ! -e /etc/diskflux.conf.moved"
 dnf -y -q install $W/his.rpm > $W/his-again.log 2>&1
 wait_active snapraidd; sleep 2
 check "then his .rpm installs next to it, both running" bash -c 'rpm -q diskflux snapraid-daemon && systemctl is-active -q diskflux snapraidd && test "$(server 127.0.0.1:7627)" = snapraidd && test "$(server 127.0.0.1:7700)" = diskflux'
