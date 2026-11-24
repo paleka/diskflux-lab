@@ -72,7 +72,7 @@ new_lxc() { # id name template [pct create options...]
 in_lxc() { # id script args...: fetch a script of the lab into the LXC and run it
 	local id=$1 script=$2; shift 2
 	pct exec "$id" -- sh -c "command -v curl >/dev/null || { apt-get update -q >/dev/null 2>&1; apt-get install -y -q curl ca-certificates >/dev/null 2>&1; } || dnf -y -q install curl >/dev/null 2>&1; curl -fsSL '$RAW/$script' -o /root/$(basename "$script")" || die "fetch $script"
-	pct exec "$id" -- env BRANCH="$BRANCH" bash "/root/$(basename "$script")" "$@"
+	pct exec "$id" -- env BRANCH="$BRANCH" HOME=/root bash "/root/$(basename "$script")" "$@"
 }
 
 reboot_lxc() {

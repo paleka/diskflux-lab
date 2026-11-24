@@ -11,6 +11,7 @@
 # It changes the machine: run it on a throwaway one. Environment: BRANCH (coexist).
 
 set -u
+export HOME=${HOME:-/root}
 BRANCH=${BRANCH:-coexist}
 W=/root/dfcheck
 ENGINE_URL=https://github.com/amadvance/snapraid/releases/download/v15.2/snapraid-15.2-1.x86_64.rpm

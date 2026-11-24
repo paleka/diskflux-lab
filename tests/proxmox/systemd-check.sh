@@ -14,6 +14,7 @@
 # Environment: BRANCH (coexist).
 
 set -u
+export HOME=${HOME:-/root}
 BRANCH=${BRANCH:-coexist}
 W=/root/dfcheck
 ENGINE_URL=https://github.com/amadvance/snapraid/releases/download/v15.2/snapraid_15.2-1_amd64.deb
