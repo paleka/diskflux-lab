@@ -426,6 +426,23 @@ reached by a report of the daemon, and one place failing not stopping the others
 maintenance started when enough files changed, and not when few did (`LAB_TEST_SLOW=0` skips
 this part).
 
+### On a Proxmox host
+
+`tests/proxmox/run.sh`, run as root on a Proxmox node, makes throwaway guests (tagged
+`diskflux-test`, named `dft-*`) and runs checks no container can: real systemd, a reboot, the
+`.rpm`, and every suite above in Docker on a native Linux kernel. Each step runs in the
+background with its log in `/root/diskflux-t13/`. Fetch `tests/proxmox/run.sh` of this
+repository to the node, then:
+
+    bash run.sh test-lxc 107     # a test LXC on snapraid-daemon-storage: snapshot, move, reboot
+    bash run.sh coexist          # Debian LXC: SnapRAID Daemon 2.2 under systemd, DiskFlux next to it
+    bash run.sh rpm              # Rocky LXC: the .rpm next to his .rpm, the move from the s14 .rpm
+    bash run.sh docker           # Debian VM with Docker: every suite of the lab
+    bash run.sh status           # the end of every log
+    bash run.sh destroy 140 141 142    # only guests tagged diskflux-test
+
+The packages are built inside the guests from the branch (`BRANCH`, default `coexist`).
+
 ## What is emulated
 
 - Every disk is a sparse image file, attached as a loop device with a partition table,
