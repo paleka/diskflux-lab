@@ -45,8 +45,8 @@ curl -fsSL -o $W/his.rpm "$HIS_URL" && echo "$HIS_SUM  $W/his.rpm" | sha256sum -
 curl -fsSL -o $W/s14.rpm "$S14_URL" || die "s14 download (removed from the releases by D6?)"
 rm -rf $W/src ~/rpmbuild
 git clone -q --depth 1 -b "$BRANCH" https://github.com/paleka/diskflux.git $W/src || die "clone"
-( cd $W/src && echo 26.12.0 > .version && autoreconf -fi && ./configure && make dist && bash makerpm.sh ) > $W/build.log 2>&1 || die "build (see $W/build.log)"
-RPM=$(ls ~/rpmbuild/RPMS/x86_64/diskflux-26.12.0-1*.x86_64.rpm 2>/dev/null | head -1)
+( cd $W/src && echo 0.9.0 > .version && autoreconf -fi && ./configure && make dist && bash makerpm.sh ) > $W/build.log 2>&1 || die "build (see $W/build.log)"
+RPM=$(ls ~/rpmbuild/RPMS/x86_64/diskflux-0.9.0-1*.x86_64.rpm 2>/dev/null | head -1)
 [ -n "$RPM" ] || die "no rpm built (see $W/build.log)"
 echo "built $(basename $RPM) from commit $(git -C $W/src rev-parse --short HEAD)"
 check "the rpm has no relation toward snapraid-daemon" bash -c "! rpm -qp --conflicts --obsoletes --provides $RPM | grep -qx 'snapraid-daemon\( .*\)\?'"

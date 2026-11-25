@@ -57,13 +57,13 @@ if [ "${1:-}" = before ]; then
 	apt-get install -y -q --no-install-recommends git ca-certificates curl jq psmisc build-essential autoconf automake zip zlib1g-dev libzstd-dev > $W/tools.log 2>&1 || die "tools (see $W/tools.log)"
 	curl -fsSL -o $W/snapraid.deb "$ENGINE_URL" && echo "$ENGINE_SUM  $W/snapraid.deb" | sha256sum -c --quiet - || die "engine download"
 	curl -fsSL -o $W/his.deb "$HIS_URL" && echo "$HIS_SUM  $W/his.deb" | sha256sum -c --quiet - || die "his download"
-	for v in 26.12.0 26.12.1; do
+	for v in 0.9.0 0.9.1; do
 		rm -rf $W/src-$v
 		git clone -q --depth 1 -b "$BRANCH" https://github.com/paleka/diskflux.git $W/src-$v || die "clone"
 		( cd $W/src-$v && echo $v > .version && autoreconf -fi && ./configure && make dist && bash makedeb.sh ) > $W/build-$v.log 2>&1 || die "build $v (see $W/build-$v.log)"
 	done
-	DEB0=$W/src-26.12.0/diskflux_26.12.0-1_amd64.deb; DEB1=$W/src-26.12.1/diskflux_26.12.1-1_amd64.deb
-	echo "built from commit $(git -C $W/src-26.12.0 rev-parse --short HEAD)"
+	DEB0=$W/src-0.9.0/diskflux_0.9.0-1_amd64.deb; DEB1=$W/src-0.9.1/diskflux_0.9.1-1_amd64.deb
+	echo "built from commit $(git -C $W/src-0.9.0 rev-parse --short HEAD)"
 	apt-get install -y -q --no-install-recommends $W/snapraid.deb $W/his.deb > $W/his-install.log 2>&1 || die "his install"
 
 	echo "== his machine: the default daemon and the instance backup, as his manual says"
@@ -94,7 +94,7 @@ if [ "${1:-}" = before ]; then
 	his_sums > $W/his.before; H1=$(mainpid snapraidd); H2=$(mainpid snapraidd@backup)
 
 	echo "== DiskFlux installed with the one command"
-	DISKFLUX_DEB=$DEB0 sh $W/src-26.12.0/installer.sh > $W/installer.log 2>&1; RC=$?
+	DISKFLUX_DEB=$DEB0 sh $W/src-0.9.0/installer.sh > $W/installer.log 2>&1; RC=$?
 	check "installer completes" test $RC = 0
 	check "diskflux.service active and enabled" bash -c 'systemctl is-active -q diskflux && systemctl is-enabled -q diskflux'
 	check "his two not restarted (same processes)" bash -c "test \$(mainpid snapraidd) = $H1 && test \$(mainpid snapraidd@backup) = $H2"
@@ -145,12 +145,12 @@ if [ "${1:-}" = before ]; then
 	echo "== an update as the web UI starts it: a transient unit out of the service"
 	systemd-run --unit=diskflux-upgrade-check --collect --quiet --description="Update of DiskFlux" --setenv=DISKFLUX_DEB=$DEB1 -- /usr/sbin/diskflux-upgrade --background --dir /etc
 	for _ in $(seq 1 120); do grep -q '^state=\(done\|failed\)' /etc/diskflux-upgrade.status 2>/dev/null && ! systemctl is-active -q diskflux-upgrade-check && break; sleep 1; done
-	check "the update ends done, 26.12.1 running" bash -c 'grep -qx state=done /etc/diskflux-upgrade.status && dpkg-query -W -f="\${Version}" diskflux | grep -qx 26.12.1-1 && systemctl is-active -q diskflux'
-	check "the unit lived through the restart by the package" grep -q 'Upgraded from 26.12.0 to 26.12.1' /etc/diskflux-upgrade.log
+	check "the update ends done, 0.9.1 running" bash -c 'grep -qx state=done /etc/diskflux-upgrade.status && dpkg-query -W -f="\${Version}" diskflux | grep -qx 0.9.1-1 && systemctl is-active -q diskflux'
+	check "the unit lived through the restart by the package" grep -q 'Upgraded from 0.9.0 to 0.9.1' /etc/diskflux-upgrade.log
 	check "his two not restarted by the update" bash -c "test \$(mainpid snapraidd) = $H1 && test \$(mainpid snapraidd@backup) = $H2"
 	systemd-run --unit=diskflux-upgrade-check2 --collect --quiet --setenv=DISKFLUX_DEB=$DEB0 -- /usr/sbin/diskflux-upgrade --background --dir /etc
-	for _ in $(seq 1 120); do grep -q '^to=26.12.0' /etc/diskflux-upgrade.status && grep -q '^state=\(done\|failed\)' /etc/diskflux-upgrade.status && ! systemctl is-active -q diskflux-upgrade-check2 && break; sleep 1; done
-	check "back to 26.12.0 the same way" bash -c 'grep -qx state=done /etc/diskflux-upgrade.status && dpkg-query -W -f="\${Version}" diskflux | grep -qx 26.12.0-1 && systemctl is-active -q diskflux'
+	for _ in $(seq 1 120); do grep -q '^to=0.9.0' /etc/diskflux-upgrade.status && grep -q '^state=\(done\|failed\)' /etc/diskflux-upgrade.status && ! systemctl is-active -q diskflux-upgrade-check2 && break; sleep 1; done
+	check "back to 0.9.0 the same way" bash -c 'grep -qx state=done /etc/diskflux-upgrade.status && dpkg-query -W -f="\${Version}" diskflux | grep -qx 0.9.0-1 && systemctl is-active -q diskflux'
 	his_sums > $W/his.before2
 	echo
 	echo "Web UI: DiskFlux http://$IP:7700   SnapRAID Daemon http://$IP:7627"
@@ -175,7 +175,7 @@ if [ "${1:-}" = after-reboot ]; then
 	check "purge: his two running and enabled, his files unchanged" bash -c "systemctl is-active -q snapraidd snapraidd@backup && systemctl is-enabled -q snapraidd snapraidd@backup && his_sums | diff -q $W/his.before2 -"
 	check "purge: the logs and SnapRAID confs stay" bash -c 'ls /var/log/snapraid/*-diskflux.log >/dev/null && test -f /etc/snapraid.conf && test -f /etc/snapraid-backup.conf'
 	echo "== installed again, then his package purged"
-	apt-get install -y -q --no-install-recommends $W/src-26.12.0/diskflux_26.12.0-1_amd64.deb > $W/again.log 2>&1
+	apt-get install -y -q --no-install-recommends $W/src-0.9.0/diskflux_0.9.0-1_amd64.deb > $W/again.log 2>&1
 	wait_active diskflux; sleep 2
 	check "installed again: imports again, runs next to his" bash -c 'grep -q "^# Settings imported from /etc/snapraidd.conf" /etc/diskflux.conf && systemctl is-active -q diskflux snapraidd && test "$(server 127.0.0.1:7700)" = diskflux'
 	DP=$(mainpid diskflux)

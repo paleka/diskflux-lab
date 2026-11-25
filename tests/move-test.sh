@@ -139,7 +139,7 @@ check "the update command of s14 completes" test $URC = 0
 for i in $(seq 1 90); do [ -z "$(state snapraid-daemon-storage)" ] && pidof diskflux >/dev/null && break; sleep 1; done
 sleep 2
 check "the move ran detached, as a unit of its own" grep -q "move-to-diskflux" $W/systemd-run.log
-check "the old daemon kept running until the update command was done" sh -c "grep -q 'Upgraded from 2.2.s14 to' /etc/diskflux-upgrade.log"
+check "the old daemon kept running until the update command was done" sh -c "grep -Eq '(Upgraded|Went back) from 2.2.s14 to' /etc/diskflux-upgrade.log"
 moved_checks
 check "the status of the update says the move and the new port" grep -q "^message=Moved to DiskFlux .*, with the same settings, arrays, shares and history. The web UI is now on port 7700" /etc/diskflux-upgrade.status
 check "the log said the port before the old daemon stopped" grep -q "The web UI moves from port 7627 to 7700" /etc/diskflux-upgrade.log
@@ -259,7 +259,7 @@ leftovers() {
   mkdir -p /etc/diskflux.d; echo 'engine_conf = /etc/snapraid/old.conf' > /etc/diskflux.d/old.conf
   echo 'shares = stale' > /etc/diskflux-host.conf
   echo 'stale history' > /etc/diskflux-runs.log
-  printf 'state=done\nfrom=26.12.1\nto=26.12.0\n' > /etc/diskflux-upgrade.status
+  printf 'state=done\nfrom=0.9.1\nto=0.9.0\n' > /etc/diskflux-upgrade.status
   printf '[stale]\n   path = /nowhere\n' > /etc/samba/diskflux-shares.conf
   # its include line left in smb.conf, before the one s14 wrote
   sed -i 's|^# Shares of the SnapRAID Daemon\. Keep this line last\.$|# Shares of DiskFlux. Keep this line last.\ninclude = /etc/samba/diskflux-shares.conf\n&|' /etc/samba/smb.conf
@@ -270,7 +270,7 @@ apt-get install -y -q -o Dpkg::Options::=--force-confold $OURS > $W/run/left.log
 check "the move completes" test $RC = 0
 check "the arrays of s14 are moved, the old ones kept aside" sh -c "cmp /etc/diskflux.d/media.conf $(before /etc/snapraidd.d/media.conf) && test ! -e /etc/diskflux.d/old.conf && test -f /etc/diskflux.d.before-move/old.conf"
 check "the settings and history of s14 are moved" sh -c "grep -qx 'shares = media' /etc/diskflux-host.conf && ! grep -q stale /etc/diskflux-host.conf /etc/diskflux-runs.log && grep -qx 'history of runs.log' /etc/diskflux-runs.log"
-check "the files left by DiskFlux are kept as .before-move" sh -c "grep -qx 'shares = stale' /etc/diskflux-host.conf.before-move && grep -qx 'stale history' /etc/diskflux-runs.log.before-move && grep -qx from=26.12.1 /etc/diskflux-upgrade.status.before-move"
+check "the files left by DiskFlux are kept as .before-move" sh -c "grep -qx 'shares = stale' /etc/diskflux-host.conf.before-move && grep -qx 'stale history' /etc/diskflux-runs.log.before-move && grep -qx from=0.9.1 /etc/diskflux-upgrade.status.before-move"
 check "the update record is the one of s14" grep -qx from=2.2.s13 /etc/diskflux-upgrade.status
 check "the shares of s14, the old shares file kept aside" sh -c "grep -q '^\[media\]' /etc/samba/diskflux-shares.conf && grep -q '^\[stale\]' /etc/samba/diskflux-shares.conf.before-move"
 check "smb.conf includes the shares once, with one marker" sh -c "test \$(grep -c '^include = /etc/samba/diskflux-shares.conf\$' /etc/samba/smb.conf) = 1 && test \$(grep -c '^# Shares of DiskFlux. Keep this line last.\$' /etc/samba/smb.conf) = 1 && ! grep -q snapraidd-shares /etc/samba/smb.conf"

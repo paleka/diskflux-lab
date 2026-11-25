@@ -8,7 +8,8 @@
 # then installs and runs next to it, also after a reboot.
 #
 # DiskFlux is built here from a branch of paleka/diskflux (default coexist),
-# as version 26.12.0, with the build tools of the release workflow. SnapRAID
+# as version 0.9.0, below every release (from 1.0.0), so that the machine is
+# offered the real release afterwards; with the build tools of the release workflow. SnapRAID
 # Daemon 2.2 is downloaded from its author's release, with its checksum.
 #
 # It changes the machine: take a snapshot first, on the Proxmox node:
@@ -19,11 +20,11 @@
 #     reboot
 #     bash lxc-check.sh after-reboot    everything back after the reboot
 #
-# Environment: BRANCH (coexist), VER (26.12.0).
+# Environment: BRANCH (coexist), VER (0.9.0).
 
 set -u
 BRANCH=${BRANCH:-coexist}
-VER=${VER:-26.12.0}
+VER=${VER:-0.9.0}
 W=/root/diskflux-check
 HIS_URL=https://github.com/amadvance/snapraid-daemon/releases/download/v2.2/snapraid-daemon_2.2-1_amd64.deb
 HIS_SUM=bef62b3e986ea77d8c368606f55b2a7ac5762d7a5fdfd319629dc529fad56939

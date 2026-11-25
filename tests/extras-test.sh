@@ -415,7 +415,7 @@ cat > $UP_TOOL <<'TOOL'
 DIR=/etc; V=latest; BG=0
 while [ $# -gt 0 ]; do
     case "$1" in
-    --list) printf '26.12.99 2026-12-01\n26.12.98 2026-11-30\nnot-a-version 2026-11-29\n'; exit 0 ;;
+    --list) printf '1.0.99 2026-12-01\n1.0.98 2026-11-30\nnot-a-version 2026-11-29\n'; exit 0 ;;
     --dir) DIR=$2; shift ;;
     --background) BG=1 ;;
     *) V=$1 ;;
@@ -437,15 +437,15 @@ chmod 755 $UP_TOOL
 req GET "$H/upgrade"
 check "with the command of the package it can update itself" test "$(echo "$BODY" | jq -r .available)" = true
 req GET "$H/upgrade_releases"
-check "the releases are listed, newest first" test "$(echo "$BODY" | jq -r '[.releases[].version] | join(" ")')" = "26.12.99 26.12.98"
+check "the releases are listed, newest first" test "$(echo "$BODY" | jq -r '[.releases[].version] | join(" ")')" = "1.0.99 1.0.98"
 check "a release has its date" test "$(echo "$BODY" | jq -r '.releases[0].date')" = 2026-12-01
 for bad in '2.2;rm -rf /' '../2.2' '2.2.s9 ' '2.2.s14' '2026.12.0' '--force' ''; do
     post upgrade "$(jq -cn --arg v "$bad" '{version: $v}')"; expect "the version '$bad' is refused" 400
 done
-post upgrade '{"version":"26.12.99"}';     expect "an update starts" 202
+post upgrade '{"version":"1.0.99"}';     expect "an update starts" 202
 REQ=$(echo "$BODY" | jq -r .requested)
 sleep 1
-post upgrade '{"version":"26.12.99"}';     expect "a second one waits for the first" 409 "already running"
+post upgrade '{"version":"1.0.99"}';     expect "a second one waits for the first" 409 "already running"
 req GET "$H/upgrade"
 check "it is followed while it runs" test "$(echo "$BODY" | jq -r .last.state)" = running
 for _ in $(seq 1 20); do [ "$(curl -s $H/upgrade | jq -r .last.state)" = running ] || break; sleep 1; done
@@ -454,22 +454,22 @@ check "its end is told" test "$(echo "$BODY" | jq -r .last.state)" = done
 check "started after it was asked" test "$(echo "$BODY" | jq -r .last.started)" -ge "$((REQ - 1))"
 check "the end of its log is there" grep -q "installed" <<< "$(echo "$BODY" | jq -r .last.log)"
 EV=$(curl -s "$H/events?limit=10")
-check "the start is in the events" test "$(echo "$EV" | jq -r '[.events[] | select(.kind == "upgrade_start")][0].target')" = 26.12.99
+check "the start is in the events" test "$(echo "$EV" | jq -r '[.events[] | select(.kind == "upgrade_start")][0].target')" = 1.0.99
 check "the end is in the events, once" test "$(echo "$EV" | jq -r '[.events[] | select(.kind == "upgrade")] | length')" = 1
 curl -s $H/upgrade > /dev/null
 check "reading it again tells it no more" test "$(curl -s "$H/events?limit=10" | jq -r '[.events[] | select(.kind == "upgrade")] | length')" = 1
-post upgrade '{"version":"26.12.66"}';     expect "an update that will fail starts" 202
+post upgrade '{"version":"1.0.66"}';     expect "an update that will fail starts" 202
 for _ in $(seq 1 20); do [ "$(curl -s $H/upgrade | jq -r .last.state)" = running ] || break; sleep 1; done
 req GET "$H/upgrade"
-check "a failure is told with its reason" test "$(echo "$BODY" | jq -r .last.message)" = "cannot download release 26.12.66"
+check "a failure is told with its reason" test "$(echo "$BODY" | jq -r .last.message)" = "cannot download release 1.0.66"
 check "a failure is in the events as bad" test "$(curl -s "$H/events?limit=10" | jq -r '[.events[] | select(.kind == "upgrade")][0].level')" = bad
 post surface "{\"device\":\"$S2\"}";      expect "a long job starts" 202
-post upgrade '{"version":"26.12.99"}';     expect "no update while a job runs" 409 "storage operation"
+post upgrade '{"version":"1.0.99"}';     expect "no update while a job runs" 409 "storage operation"
 check "the status says so" test "$(curl -s $H/upgrade | jq -r .busy)" = true
 req POST $S/job_stop '{}'
 job_wait
 # a status left by a run that died
-printf 'state=running\nfrom=2.2.s1\nto=26.12.99\nstarted=1\nfinished=\npid=999999\nmessage=Installing\n' > "$CONFDIR/diskflux-upgrade.status"
+printf 'state=running\nfrom=2.2.s1\nto=1.0.99\nstarted=1\nfinished=\npid=999999\nmessage=Installing\n' > "$CONFDIR/diskflux-upgrade.status"
 check "a run that died is told as failed" test "$(curl -s $H/upgrade | jq -r .last.state)" = failed
 rm -f $UP_TOOL "$CONFDIR/diskflux-upgrade.status" "$CONFDIR/diskflux-upgrade.log"
 check "without the command it can't update itself again" test "$(curl -s $H/upgrade | jq -r .available)" = false
