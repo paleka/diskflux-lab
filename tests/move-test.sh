@@ -30,6 +30,9 @@ done
 # the image keeps no package lists, and the packages need systemd and the rest from the
 # archive: the lists are read once (the container has the network, as the installer needs)
 ls /var/lib/apt/lists/*_Packages >/dev/null 2>&1 || apt-get update -q >/dev/null 2>&1
+# a container has the nodes of the loop devices it started with only: the disks of this test
+# take the next free ones (the entrypoint of the lab does the same for its disks)
+for n in $(seq 0 127); do [ -e /dev/loop$n ] || mknod /dev/loop$n b 7 $n 2>/dev/null; done
 OURS=$PKG/daemon.deb; TRANS=$PKG/transition.deb; S14=$PKG/s14.deb
 HIS=$PKG/snapraid-daemon.deb; ENG=$PKG/snapraid-new.deb
 INST=$PKG/installer.sh

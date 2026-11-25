@@ -32,6 +32,9 @@ for f in snapraid-old.deb snapraid-migrate.deb snapraid-new.deb daemon.deb insta
     [ -f "$PKG/$f" ] || { echo "refusing to run: $PKG/$f is missing, build the image with LAB_PACKAGES=1"; exit 99; }
 done
 
+# a container has the nodes of the loop devices it started with only: the disks of this test
+# take the next free ones (the entrypoint of the lab does the same for its disks)
+for n in $(seq 0 127); do [ -e /dev/loop$n ] || mknod /dev/loop$n b 7 $n 2>/dev/null; done
 W=/var/lab-existing
 IMG=$W/img
 U=http://127.0.0.1:7700/snapraid

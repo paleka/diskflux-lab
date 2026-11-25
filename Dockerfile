@@ -63,6 +63,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=build /build-engine/snapraid /usr/bin/snapraid
 COPY --from=build /build-daemon/diskflux /usr/sbin/diskflux
 COPY --from=build /build-daemon/quiet.zip /build-daemon/commander.zip /build-daemon/brutale.zip /usr/share/diskflux/
+# the fake smartctl stays when a package brings smartmontools (DiskFlux recommends it):
+# the file of the package goes to smartctl.distrib
+RUN dpkg-divert --local --rename --divert /usr/sbin/smartctl.distrib --add /usr/sbin/smartctl
 COPY --from=build /smartctl /usr/sbin/smartctl
 COPY fake-smartctl /usr/libexec/lab/fake-smartctl
 # In front of the real lsblk (/usr/bin) in the search path of the daemon: it gives the emulated disks a model and a bus.
