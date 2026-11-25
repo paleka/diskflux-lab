@@ -429,7 +429,7 @@ echo "lab stand-in: installing $V"
 st running "" "Installing $V"
 sleep 3
 case "$V" in
-*.s66) echo "no network"; st failed "$(date +%s)" "cannot download release $V" ;;
+*.66) echo "no network"; st failed "$(date +%s)" "cannot download release $V" ;;
 *) echo "installed"; st done "$(date +%s)" "Upgraded from 2.2.s1 to $V" ;;
 esac
 TOOL
