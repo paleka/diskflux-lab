@@ -18,7 +18,6 @@ ENGINE_URL=https://github.com/amadvance/snapraid/releases/download/v15.2/snaprai
 ENGINE_SUM=f1c37fa43beea8445858520a5cd514198d8c0c0ac5a5ab588adcd02e872ee681
 HIS_URL=https://github.com/amadvance/snapraid-daemon/releases/download/v2.2/snapraid-daemon-2.2-1.x86_64.rpm
 HIS_SUM=9c43591cecf2be5276d944acfdf414fc5860d470f53dc44432752794f9aa1e2e
-S14_URL=https://github.com/paleka/diskflux/releases/download/v2.2.s14/snapraid-daemon-storage-2.2.s14-1.x86_64.rpm
 PASS=0; FAILS=0
 mkdir -p $W
 ok()   { PASS=$((PASS+1)); echo "ok    $1"; }
@@ -42,7 +41,11 @@ echo "== tools, SnapRAID 15.2 and SnapRAID Daemon 2.2 (.rpm), DiskFlux .rpm buil
 dnf -y -q install git curl jq gcc make autoconf automake zip zlib-devel libzstd-devel rpm-build tar gzip procps-ng findutils diffutils > $W/tools.log 2>&1 || die "tools (see $W/tools.log)"
 curl -fsSL -o $W/snapraid.rpm "$ENGINE_URL" && echo "$ENGINE_SUM  $W/snapraid.rpm" | sha256sum -c --quiet - || die "engine download"
 curl -fsSL -o $W/his.rpm "$HIS_URL" && echo "$HIS_SUM  $W/his.rpm" | sha256sum -c --quiet - || die "his download"
-curl -fsSL -o $W/s14.rpm "$S14_URL" || die "s14 download (removed from the releases by D6?)"
+# the earlier package, 2.2.s14: its files left the releases (D6), so it is built from its tag
+rm -rf $W/s14src ~/rpmbuild
+git clone -q --depth 1 -b v2.2.s14 https://github.com/paleka/diskflux.git $W/s14src || die "clone of v2.2.s14"
+( cd $W/s14src && echo 2.2.s14 > .version && autoreconf -fi && ./configure && make dist && bash makerpm.sh ) > $W/build-s14.log 2>&1 || die "build of s14 (see $W/build-s14.log)"
+cp ~/rpmbuild/RPMS/x86_64/snapraid-daemon-storage-2.2.s14-1*.x86_64.rpm $W/s14.rpm || die "no s14 rpm built (see $W/build-s14.log)"
 rm -rf $W/src ~/rpmbuild
 git clone -q --depth 1 -b "$BRANCH" https://github.com/paleka/diskflux.git $W/src || die "clone"
 ( cd $W/src && echo 0.9.0 > .version && autoreconf -fi && ./configure && make dist && bash makerpm.sh ) > $W/build.log 2>&1 || die "build (see $W/build.log)"

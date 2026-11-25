@@ -68,13 +68,14 @@ if [ "${1:-}" = before ]; then
 
 	echo "== his machine: the default daemon and the instance backup, as his manual says"
 	# SnapRAID wants each disk on a filesystem of its own: the mount points of the LXC
-	# (run.sh gives six), else tmpfs
+	# (run.sh gives six), else tmpfs. Their lost+found can't be read from an
+	# unprivileged LXC: excluded
 	for m in /srv/a/d1 /srv/a/d2 /srv/a/parity /srv/b/d1 /srv/b/d2 /srv/b/parity; do
 		mkdir -p $m; mountpoint -q $m || mount -t tmpfs -o size=400m tmpfs $m || die "cannot mount a disk at $m"
 	done
 	for a in a b; do for i in $(seq 1 20); do head -c 40000 /dev/urandom > /srv/$a/d1/f$i; head -c 30000 /dev/urandom > /srv/$a/d2/g$i; done; done
-	printf 'parity /srv/a/parity/snapraid.parity\ncontent /srv/a/d1/snapraid.content\ncontent /srv/a/d2/snapraid.content\ndata d1 /srv/a/d1\ndata d2 /srv/a/d2\n' > /etc/snapraid.conf
-	printf 'parity /srv/b/parity/snapraid.parity\ncontent /srv/b/d1/snapraid.content\ncontent /srv/b/d2/snapraid.content\ndata d1 /srv/b/d1\ndata d2 /srv/b/d2\n' > /etc/snapraid-backup.conf
+	printf 'parity /srv/a/parity/snapraid.parity\ncontent /srv/a/d1/snapraid.content\ncontent /srv/a/d2/snapraid.content\ndata d1 /srv/a/d1\ndata d2 /srv/a/d2\nexclude /lost+found/\n' > /etc/snapraid.conf
+	printf 'parity /srv/b/parity/snapraid.parity\ncontent /srv/b/d1/snapraid.content\ncontent /srv/b/d2/snapraid.content\ndata d1 /srv/b/d1\ndata d2 /srv/b/d2\nexclude /lost+found/\n' > /etc/snapraid-backup.conf
 	snapraid -c /etc/snapraid.conf sync > $W/sync-a.log 2>&1 || die "first sync of array a (see $W/sync-a.log)"
 	snapraid -c /etc/snapraid-backup.conf sync > $W/sync-b.log 2>&1 || die "first sync of array b (see $W/sync-b.log)"
 	# his daemon on the network for the browser checks, protected by an address list, on IPv4 and IPv6
