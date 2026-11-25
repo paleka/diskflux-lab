@@ -18,5 +18,12 @@ services:
       LAB_AUTH: ""
       LAB_RUN_TESTS: "1"
       LAB_TEST: "extras-test.sh"
+      # as the showcase, but s2 small: the write test and the surface scan go over the whole
+      # disk, which a disk of 1 TB, even sparse, makes take hours and fill the host
+      LAB_DISK_SIZES: >-
+        d1=256 d2=512 d3=768 d4=384 p1=1024 p2=1024 s1=16T s2=512
+        m1=12T m2=6T m3=8T q1=256 q2=11446066
+        f1=2T f2=2T f3=1T g1=2T
+        x1=256 u1=2T
 volumes:
   lab:
