@@ -44,7 +44,8 @@ export DEBIAN_FRONTEND=noninteractive
 ok()   { PASS=$((PASS + 1)); echo "ok    $1"; }
 fail() { FAILS=$((FAILS + 1)); echo "FAIL  $1"; [ -n "${2:-}" ] && echo "      $2"; }
 section() { echo; echo "== $1"; }
-check() { local name=$1; shift; if "$@" >/dev/null 2>&1; then ok "$name"; else fail "$name" "failed: $*"; fi; }
+# the output of a step that fails is shown (its last lines)
+check() { local name=$1; shift; if "$@" >"${W:-/tmp}/check.out" 2>&1; then ok "$name"; else fail "$name" "failed: $*"; tail -n 6 "${W:-/tmp}/check.out" | sed 's/^/      | /'; fi; }
 not()  { ! "$@"; }
 api()  { curl -s -m 120 -u "$AUTH" "$U$1"; }
 post() { curl -s -m 120 -u "$AUTH" -X "${3:-POST}" -H 'Content-Type: application/json' --data-binary "$2" "$U$1"; }
