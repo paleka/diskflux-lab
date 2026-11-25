@@ -27,6 +27,9 @@ PKG=${LAB_PKG:-/usr/local/share/lab/pkg}
 for f in daemon.deb transition.deb s14.deb snapraid-daemon.deb snapraid-new.deb installer.sh; do
     [ -f "$PKG/$f" ] || { echo "refusing to run: $PKG/$f is missing, build the image with LAB_PACKAGES=1 (s14.deb needs the tag v2.2.s14 in the checkout)"; exit 99; }
 done
+# the image keeps no package lists, and the packages need systemd and the rest from the
+# archive: the lists are read once (the container has the network, as the installer needs)
+ls /var/lib/apt/lists/*_Packages >/dev/null 2>&1 || apt-get update -q >/dev/null 2>&1
 OURS=$PKG/daemon.deb; TRANS=$PKG/transition.deb; S14=$PKG/s14.deb
 HIS=$PKG/snapraid-daemon.deb; ENG=$PKG/snapraid-new.deb
 INST=$PKG/installer.sh

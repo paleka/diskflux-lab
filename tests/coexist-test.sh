@@ -39,6 +39,9 @@ PKG=${LAB_PKG:-/usr/local/share/lab/pkg}
 for f in snapraid-new.deb snapraid-daemon.deb daemon.deb installer.sh; do
     [ -f "$PKG/$f" ] || { echo "refusing to run: $PKG/$f is missing, build the image with LAB_PACKAGES=1"; exit 99; }
 done
+# the image keeps no package lists, and the packages need systemd and the rest from the
+# archive: the lists are read once (the container has the network, as the installer needs)
+ls /var/lib/apt/lists/*_Packages >/dev/null 2>&1 || apt-get update -q >/dev/null 2>&1
 
 W=/var/lab-coexist
 IMG=$W/img
