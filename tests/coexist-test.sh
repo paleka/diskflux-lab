@@ -89,7 +89,11 @@ disk() { # name sizeMB -> prints the partition
     echo 'type=83' | sfdisk -q "$img"
     loop=$(losetup -fP --show "$img"); base=${loop##*/}; part=${loop}p1
     for _ in $(seq 1 20); do [ -e "/sys/block/$base/${base}p1/dev" ] && break; partx -a "$loop" 2>/dev/null; sleep 0.1; done
-    [ -b "$part" ] || mknod "$part" b $(tr ':' ' ' < "/sys/block/$base/${base}p1/dev")
+    # a node left from an earlier disk may hold an old number (loop partitions get a
+    # new one each time): made again
+    local dev; dev=$(cat "/sys/block/$base/${base}p1/dev")
+    if [ -b "$part" ] && [ "$(stat -c '%t:%T' "$part")" != "$(printf '%x:%x' "${dev%%:*}" "${dev##*:}")" ]; then rm -f "$part"; fi
+    [ -b "$part" ] || mknod "$part" b "${dev%%:*}" "${dev##*:}"
     mkfs.ext4 -q -L "$1" "$part"
     # what udev makes on a real machine: SnapRAID knows a disk by this, also a renamed one
     mkdir -p /dev/disk/by-uuid; ln -sf "$part" "/dev/disk/by-uuid/$(blkid -s UUID -o value "$part")"
