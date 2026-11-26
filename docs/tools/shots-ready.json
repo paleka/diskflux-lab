@@ -133,6 +133,32 @@
      "click": "[data-st=replace][data-name=m2]"
     }
    ]
+  },
+  {
+   "name": "snapraid-file",
+   "hash": "#/snapraid-file",
+   "h": 1000,
+   "steps": [
+    {
+     "eval": "(() => { const b = document.querySelector('#cf-text'); b.value = b.value.replace(/^(exclude .*)$/m, '$1\\nexclude *.part'); b.dispatchEvent(new Event('input')); })()",
+     "wait": 400
+    }
+   ]
+  },
+  {
+   "name": "config-review",
+   "hash": "#/snapraid-file",
+   "h": 1000,
+   "steps": [
+    {
+     "eval": "(() => { const b = document.querySelector('#cf-text'); b.value = b.value.replace(/^(exclude .*)$/m, '$1\\nexclude *.part').replace(/^data (\\S+) (\\S+)$/m, 'data $1 $2\\ndata d9 /mnt/lab/s1/'); b.dispatchEvent(new Event('input')); })()",
+     "wait": 400
+    },
+    {
+     "click": "#cf-review",
+     "wait": 900
+    }
+   ]
   }
  ]
 }
