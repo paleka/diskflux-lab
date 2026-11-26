@@ -159,6 +159,54 @@
      "wait": 900
     }
    ]
+  },
+  {
+   "name": "user-menu",
+   "hash": "#/",
+   "h": 900,
+   "steps": [
+    {
+     "click": "#um-trigger",
+     "wait": 1200
+    },
+    {
+     "eval": "document.querySelector('.um-q[data-id=reboot]').focus()",
+     "wait": 500
+    }
+   ]
+  },
+  {
+   "name": "server-action-restart",
+   "hash": "#/",
+   "h": 900,
+   "steps": [
+    {
+     "click": "#um-trigger",
+     "wait": 1200
+    },
+    {
+     "click": ".um-item[data-id=reboot]",
+     "wait": 1500
+    }
+   ]
+  },
+  {
+   "name": "my-settings",
+   "hash": "#/me",
+   "h": 1500,
+   "steps": []
+  },
+  {
+   "name": "user-menu-phone",
+   "hash": "#/",
+   "w": 390,
+   "h": 844,
+   "steps": [
+    {
+     "click": "#um-trigger",
+     "wait": 1200
+    }
+   ]
   }
  ]
 }

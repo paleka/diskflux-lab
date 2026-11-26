@@ -4,7 +4,8 @@
 # Checks the write test of a new disk, the record of the runs with the errors found and fixed,
 # the update of the protection when enough files changed, the battery backup (UPS), the disks
 # mounted for a while and ejected, the folders of other computers as sources of a backup, and
-# the alerts sent to more channels at once, and the update of the daemon from the web UI.
+# the alerts sent to more channels at once, the actions on the server from the menu (dry run),
+# and the update of the daemon from the web UI.
 #
 # It works on the showcase lab of docker-compose.yml as it is after the first start. It
 # overwrites the blank disk s2 and writes on x1 and u1:
@@ -396,6 +397,36 @@ check "the shutdown on battery is a dry run in the lab" grep -q "dry run" <<< "$
 check "a limit is kept" test "$(curl -s "$H/events?limit=2" | jq -r '.events | length')" = 2
 check "the events are a file next to the settings" grep -qP "^\d+\twarn\tpower_cut\tnut:labups\t" "$CONFDIR/diskflux-events.log"
 refute "a folder size is not an event" grep -qP "\tusage\t" "$CONFDIR/diskflux-events.log"
+
+section "actions on the server (dry run)"
+check "the facts of the menu are given" test "$(host '(.server_actions.hostname | length > 0) and (.server_actions.uptime_seconds >= 0) and (.admin == true)')" = true
+check "the computers on the shares are counted" test "$(host .server_actions.share_clients)" -ge 0
+check "the next maintenance is known" test "$(host .server_actions.next_maintenance_minutes)" -ge -1
+post server_action '{"action":"halt"}';                  expect "an unknown action is refused" 400 "disks_sleep, service_restart"
+post server_action '{"action":"cancel"}';                expect "nothing to cancel" 409 "Nothing is waiting"
+# a scrub held still: the work is running
+schedule '{"command":"scrub","args":["-p","100","-o","0"]}'
+wait_for 20 pgrep -x snapraid; pkill -STOP -x snapraid
+check "the running work is told" test -n "$(host .server_actions.busy)"
+post server_action '{"action":"reboot","when":"now"}';   expect "now, while it works, is refused" 409 "when the work ends"
+post server_action '{"action":"reboot","when":"after"}'; expect "when it ends is accepted" 202
+check "it waits" test "$(echo "$BODY" | jq -r .waiting)" = true
+check "the menu sees what waits" test "$(host '.server_actions.pending.action + " " + (.server_actions.pending.after_work | tostring)')" = "reboot true"
+post server_action '{"action":"poweroff","when":"after"}'; expect "a second action waits for the first to be cancelled" 409 "cancel it first"
+post server_action '{"action":"cancel"}';                expect "the waiting action is cancelled" 202
+check "nothing waits any more" test "$(host '.server_actions.pending // "none"')" = none
+post server_action '{"action":"reboot","when":"after"}'; expect "asked again" 202
+pkill -CONT -x snapraid; tasks_wait
+wait_for 40 test "$(host '.server_actions.pending // "none"')" = none
+check "done when the work ended" test "$(host '.server_actions.pending // "none"')" = none
+EV=$(curl -s "$H/events?limit=20")
+check "the restart is a dry run in the lab" test "$(echo "$EV" | jq -r '[.events[] | select(.kind == "power" and .target == "reboot")][0].text')" = "Restart the server (dry run)"
+check "the wait and the cancel are events" test "$(echo "$EV" | jq -r '[.events[] | select(.kind == "power") | .target] | (index("waiting") != null) and (index("cancel") != null)')" = true
+post server_action '{"action":"disks_sleep"}';           expect "the disks of every array are asked to sleep" 202
+check "every array with disks" test "$(echo "$BODY" | jq -r .arrays)" -ge 3
+tasks_wait
+check "a SnapRAID down ran" test "$(last_task down .status)" != null
+wait_for 30 test "$(host .server_actions.busy)" = ""
 
 section "update of the daemon"
 # The lab runs the daemon built from the sources, not from the package: it can't update itself,
