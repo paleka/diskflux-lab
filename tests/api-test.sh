@@ -231,6 +231,30 @@ check "the inventory returns it" test "$(curl -s $S | jq -r .engine_conf.text | 
 req PUT $S/engine_conf "{\"text\":\"$TEXT# second\\n\"}"; expect "it is written again" 200
 check "the previous one is kept as .diskflux.bak" test "$(tail -1 "$CONF.diskflux.bak")" = "exclude /lost+found/"
 
+# every write keeps a copy, with what the change was; a change made outside DiskFlux is kept before it is replaced
+H=$S/engine_conf_history
+req PUT $S/engine_conf "{\"text\":\"$TEXT# third\\n\",\"label\":\"Third\\tby the tests\"}"; expect "a write with the words of the change" 200
+req GET $H;                                         expect "the history is listed" 200
+check "the newest copy is the last write, its words on one line" test "$(echo "$BODY" | jq -r '.copies[0].label')" = "Third by the tests"
+check "the last two copies are by DiskFlux" test "$(echo "$BODY" | jq -r '[.copies[0:2][].who] | unique | join(",")')" = "diskflux"
+check "the file is as DiskFlux wrote it" test "$(echo "$BODY" | jq -r .outside)" = false
+ID=$(echo "$BODY" | jq -r '.copies[0].id')
+req GET "$H?id=$ID";                                expect "a copy is read" 200
+check "with its text" test "$(echo "$BODY" | jq -j .text | tail -1)" = "# third"
+echo "# by hand" >> "$CONF"
+check "a change by hand is seen" test "$(curl -s $H | jq -r .outside)" = true
+req PUT $S/engine_conf "{\"text\":\"$TEXT\"}";    expect "written over the change by hand" 200
+req GET $H
+check "the change by hand was kept first" test "$(echo "$BODY" | jq -r '.copies[1].who')" = outside
+OUT=$(echo "$BODY" | jq -r '.copies[1].id')
+check "with the line written by hand" test "$(curl -s "$H?id=$OUT" | jq -j .text | tail -1)" = "# by hand"
+check "and the file is DiskFlux's again" test "$(echo "$BODY" | jq -r .outside)" = false
+req GET "$H?id=../../diskflux.conf";                expect "a name not in the history is refused" 404
+for i in $(seq 1 32); do curl -s -o /dev/null -X PUT -H 'Content-Type: application/json' --data-binary "{\"text\":\"$TEXT# $i\\n\"}" $S/engine_conf; done
+req PUT $S/engine_conf "{\"text\":\"$TEXT\"}";    expect "and back to the text of the tests" 200
+check "30 copies are kept" test "$(curl -s $H | jq '.copies | length')" = 30
+check "and as many files, next to the settings" test "$(ls $LAB/etc/diskflux-history/default/*.conf | wc -l)" = 30
+
 fill $T/d1/Movies 12 3000; fill $T/d1/Music 30 200; fill $T/d2/Photos 40 150; fill $T/d3/Docs 25 60
 fill $T/d2/Movies/extra 2 2000
 schedule '{"command":"probe"},{"command":"sync"}';  expect "probe and sync are scheduled" 202
