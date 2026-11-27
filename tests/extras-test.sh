@@ -119,7 +119,16 @@ cat > /usr/local/bin/mail <<EOF
 { echo "Subject: \$2"; cat; echo "--"; } >> "$STAND/mail/\$3"
 EOF
 chmod 755 /usr/local/bin/upsc /sbin/mount.cifs /usr/local/bin/mail
-cleanup() { rm -f /usr/local/bin/upsc /sbin/mount.cifs /usr/local/bin/mail; }
+# The lab has no systemd and no shutdown, so the daemon rightly says it can't restart this machine
+# (501), dry run or not. A stand-in of shutdown makes it a machine that can: the daemon in dry run
+# only logs the action and never calls it, and if anything ever did, it refuses.
+SHUTDOWN_STANDIN=
+if [ ! -e /usr/local/sbin/shutdown ] && ! command -v shutdown >/dev/null && ! command -v systemctl >/dev/null; then
+    SHUTDOWN_STANDIN=/usr/local/sbin/shutdown
+    printf '#!/bin/sh\n# Stand-in of shutdown for the lab tests: never restarts or turns off anything\necho "lab: not a real machine, nothing done" >&2\nexit 1\n' > $SHUTDOWN_STANDIN
+    chmod 755 $SHUTDOWN_STANDIN
+fi
+cleanup() { rm -f /usr/local/bin/upsc /sbin/mount.cifs /usr/local/bin/mail ${SHUTDOWN_STANDIN:+"$SHUTDOWN_STANDIN"}; }
 trap cleanup EXIT
 
 tasks_wait
