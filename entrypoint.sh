@@ -328,6 +328,15 @@ for d in "${disks[@]}"; do
     fi
     k=$((k + 1))
 done
+# A loop device is "rotational" like the disk its file is on, so on a host with SSDs every lab
+# disk looked like an SSD to SnapRAID, which then never spins them down. Each one now rotates as
+# its profile says (RPM above 0 is a hard disk). Best effort: /sys may be read-only.
+for m in /run/lab/map/*; do
+    [ -f "$m" ] || continue
+    rpm=$( RPM=7200; . "$LAB/smart/$(cat "$m").env" 2>/dev/null; echo "$RPM" )
+    [ "${rpm:-0}" != 0 ] && rot=1 || rot=0
+    echo $rot > "/sys/block/${m##*/}/queue/rotational" 2>/dev/null || true
+done
 has() { local d; for d in "${disks[@]}"; do [ "$d" = "$1" ] && return 0; done; return 1; }
 kind_of() { ( KIND=ata; TRAN=sata; . "$LAB/smart/$1.env" 2>/dev/null; echo "$KIND/$TRAN" ) }
 
