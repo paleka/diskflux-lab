@@ -1,0 +1,77 @@
+# The lab's gate on git.lan, as for the daemon and for SiteHB (web_build ADR-0412): a push goes to Forgejo, every test
+# suite of the lab runs against the daemon's `storage`, and only if all are green is the commit pushed on to GitHub.
+# Every night the same suites run again without shipping anything, so a daemon change that breaks the lab shows up
+# within a day even when the lab itself did not change.
+#
+# The suites need privileged Docker (loop devices, mounts, FUSE), so they run in CT 100 `diskflux-ci` on proxmox-ci-runners.lan, label
+# `diskflux-lab` (host mode: docker compose on CT 100 itself), one at a time (the runner's capacity for this label is
+# 1: several suites publish the lab's port and attach loop devices). Setup and recovery: docs/forgejo-ci.md.
+# Secret: GH_PUSH_TOKEN (the same token as the daemon's: DiskFlux repositories, Contents + Workflows read & write).
+name: ci
+
+on:
+  push:
+    branches: ['**']
+  schedule:
+    - cron: '17 9 * * *' # 01:17 in Vancouver (the runner's clock is UTC)
+  workflow_dispatch:
+    inputs:
+      daemon_ref:
+        description: Branch or tag of the daemon to test against
+        default: storage
+
+env:
+  DAEMON_REF: ${{ inputs.daemon_ref || 'storage' }}
+  DAEMON_SRC: /tmp/diskflux-ci/daemon # read by every compose file (outside the checkout, so not in the build context)
+
+jobs:
+  suite:
+    name: ${{ matrix.suite }}
+    runs-on: diskflux-lab
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false # a red suite should not hide a second red one
+      matrix:
+        # test: the unit tests during the image build, then the storage API tests
+        suite: [test, sizes, arrays, showcase, tiers, extras, machine, existing, coexist]
+    env:
+      COMPOSE_FILE: docker-compose.${{ matrix.suite }}.yml
+      COMPOSE_PROJECT_NAME: ci-${{ matrix.suite }}
+    steps:
+      # Plain git rather than actions/checkout: the runner is in host mode and needs no Node for it
+      - name: The lab (${{ github.sha }})
+        run: |
+          git init -q . && git fetch -q --depth 1 "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git" "$GITHUB_SHA" && git checkout -q --force FETCH_HEAD
+          git clean -qfdx
+      # The daemon from git.lan, which has what was just pushed even before it reaches GitHub; GitHub if git.lan
+      # cannot be read. With its tags: the coexistence suite builds the earlier package from v2.2.s14.
+      - name: The daemon (${{ env.DAEMON_REF }})
+        run: |
+          rm -rf "$DAEMON_SRC" && mkdir -p "$(dirname "$DAEMON_SRC")"
+          git clone -q --branch "$DAEMON_REF" "${GITHUB_SERVER_URL}/robert/diskflux.git" "$DAEMON_SRC" \
+            || git clone -q --branch "$DAEMON_REF" https://github.com/paleka/diskflux.git "$DAEMON_SRC"
+          git -C "$DAEMON_SRC" fetch -q --tags --force origin
+          git -C "$DAEMON_SRC" log --oneline -1
+      - name: Clean up after an earlier run
+        run: docker compose down -v --remove-orphans || true
+      - name: Run ${{ matrix.suite }}
+        run: docker compose up --build --abort-on-container-exit --exit-code-from tests
+      - name: Clean up
+        if: always()
+        run: docker compose down -v --remove-orphans || true
+
+  ship:
+    needs: suite
+    if: github.event_name == 'push'
+    runs-on: diskflux
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # GitHub must be sent every commit it does not have yet
+      - name: Push the tested commit to GitHub
+        env:
+          GH_PUSH_TOKEN: ${{ secrets.GH_PUSH_TOKEN }}
+        run: |
+          [ -n "$GH_PUSH_TOKEN" ] || { echo "::error::GH_PUSH_TOKEN is not set on git.lan"; exit 1; }
+          git push "https://x-access-token:${GH_PUSH_TOKEN}@github.com/paleka/diskflux-lab.git" "${GITHUB_SHA}:${GITHUB_REF}"
