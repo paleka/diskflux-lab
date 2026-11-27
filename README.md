@@ -121,7 +121,7 @@ as it starts (`shots-ready.json`), after `lab scenario mass-delete` and a mainte
 
 | What | Version |
 |---|---|
-| SnapRAID engine | release 15.1, unmodified, commit `4054832` (checked by the `Dockerfile`) |
+| SnapRAID engine | release 15.2, unmodified, commit `47e439d` (checked by the `Dockerfile`) |
 | DiskFlux | the checkout next to this folder; all the tests last run with `storage` at `8914e17`, the pictures taken with `7250acd` |
 | mergerfs, xfsprogs, btrfs-progs | the ones of Debian 12 |
 
@@ -486,7 +486,7 @@ The packages are built inside the guests from the branch (`BRANCH`, default `coe
 Three things are not like on a real machine. The kernel calls every loop device a rotating disk
 and this cannot be changed, so SnapRAID spins down the emulated SSDs too (the array `flash` has
 spin down off). The model of an NVMe or SAS disk comes from the kernel on a real machine; here
-the fake `smartctl` adds it to its answer. And SnapRAID 15.1 names "SCSI" every disk that
+the fake `smartctl` adds it to its answer. And SnapRAID 15 names "SCSI" every disk that
 answers in the SCSI format, so the SAS disk is shown as SCSI in the Disks page.
 
 The container must be `privileged` (loop devices and mounts). If loop devices cannot be used it

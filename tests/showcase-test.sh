@@ -114,7 +114,7 @@ is "d1 is a SATA disk" "$(field $U d1 interface)" SATA
 check "d1 rotates" test "$(field $U d1 rotational)" -gt 0
 is "d2, shingled, is a SATA disk" "$(field $U d2 interface)" SATA
 check "d2 is of the Archive family" sh -c "grep -q 'SMR' $LAB/smart/d2.env"
-# SnapRAID 15.1 calls SCSI every disk that answers in the SCSI format, SAS included
+# SnapRAID 15 calls SCSI every disk that answers in the SCSI format, SAS included
 is "d3 answers in the SCSI format" "$(field $U d3 interface)" SCSI
 is "d3 rotates at 7200 rpm" "$(field $U d3 rotational)" 7200
 check "d3 reports its grown defects" test "$(device $U d3 | jq '[.smart.attributes[] | select(.name == "Elements_In_Grown_Defect_List")][0].raw')" = "$(. $LAB/smart/d3.env; echo $REALLOCATED)"

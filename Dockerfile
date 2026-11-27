@@ -12,8 +12,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # SnapRAID engine, by Andrea Mazzoleni. The commit is checked, because a tag can be moved.
 ARG SNAPRAID_REPO=https://github.com/amadvance/snapraid.git
-ARG SNAPRAID_TAG=v15.1
-ARG SNAPRAID_COMMIT=4054832c7e385388c6629561bf0ddb16b95698b5
+ARG SNAPRAID_TAG=v15.2
+ARG SNAPRAID_COMMIT=47e439ddffa41d3f998174d7a5bc416a290ee3cc
 RUN git clone --depth 1 --branch "$SNAPRAID_TAG" "$SNAPRAID_REPO" /src/snapraid \
  && test "$(git -C /src/snapraid rev-parse HEAD)" = "$SNAPRAID_COMMIT" \
  && cd /src/snapraid && ./autogen.sh \
